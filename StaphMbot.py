@@ -70,7 +70,7 @@ class tgapi:
         misc['chat_id'] = target
         data = self.query('sendMessage',misc)
         if data and data['text'] == text:
-            return True
+            return data['message_id']
         else:
             return False
 
@@ -93,7 +93,11 @@ def initiateDB(fName):
     return (conf,group,warn)
 
 def addGroup(gid,db):
-    pass
+    if not db[1].hasItem(gid):
+        db[1].addItem([str(gid)]+[str(i) for i in db[1].data.execute('select * from "group" where header="default"').fetchone()[1:]])
+        print('I\'ve been added to a new group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
+    else:
+        print('I\'ve been added back to group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
 
 def randomID():
     return hex(int.from_bytes(os.urandom(8),'big'))[2:]
@@ -109,6 +113,36 @@ def getName(uid,gid,api,lookup={}):
     except APIError:
         return 'a former admin of this group'
     return '@'+result['user']['username']
+
+def processWarn(db,api,uid,gid,ts,reply):
+    print('Processing actual punishment...')
+    warnNum = countWarn(db,gid,uid)
+    if warnNum > 5:
+        warnNum = 5
+    punish = db[1].getItem(str(gid),'warning'+str(warnNum)).split('|')
+    print(punish)
+    # 0 - Nothing
+    # 1 - Mute
+    # 2 - Kick
+    if punish[0] == '1':
+        if len(punish) == 1 or punish[1] == '0':
+            # Forever
+            print(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False}))
+            api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
+        elif int(ts)+int(punish[1]) - time.time() < 60:
+            api.sendMessage(gid,'該用戶應當被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
+        else:
+            print(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False}))
+            api.sendMessage(gid,'該用戶已被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
+    if punish[0] == '3':
+        if len(punish) == 1 or punish[1] == '0':
+            print(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)}))
+            api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
+        elif int(ts)+int(punish[1]) - time.time() < 60:
+            api.sendMessage(gid,'該用戶應當被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
+        else:
+            print(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])}))
+            api.sendMessage(gid,'該用戶已被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
 
 def processItem(message,db,api):
     print(message['update_id'],'being processed...')
@@ -142,20 +176,20 @@ def processItem(message,db,api):
                             api.sendMessage(message['message']['chat']['id'],'用法錯誤：請提供警告理由，使對方明白何處做錯。',{'reply_to_message_id':message['message']['message_id']})
                         elif warnInfo[2] in adminList:
                             api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告管理員，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
-                        elif warnInfo[2] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
-                            api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
+                            #elif warnInfo[2] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
+                            #api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                         else:
                             notUnique = True
                             while notUnique:
                                 id = [randomID()]
                                 notUnique = db[2].hasItem(id[0])
                             db[2].addItem(id+warnInfo)
-                            api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
+                            rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
                             print('Warned '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
+                            processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
             addGroup(message['message']['chat']['id'],db)
-            print('I\'ve been added to the group '+str(message['message']['chat']['id'])+': '+message['message']['chat']['title']+'.')
     db[0].addItem(['lastid',message['update_id']])
     db[0].addItem(['lasttime',message['message']['date']])
 
