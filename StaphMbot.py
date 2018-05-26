@@ -41,7 +41,7 @@ class tgapi:
         if parameter is not None:
             req.add_header('Content-Type','application/json')
             req.data = json.dumps(parameter).encode('UTF-8')
-            print(req.data.decode('UTF-8'))
+        #            print(req.data.decode('UTF-8'))
         retryCount = 0
         failed = True
         while failed:
@@ -136,7 +136,7 @@ def processItem(message,db,api):
                                 db[2].addItem([randomID()]+warnInfo)
                                 api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
                              #   else:
-                                print(warnInfo)
+                                print('Warned '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
                                 notAdded = False
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
@@ -147,11 +147,17 @@ def processItem(message,db,api):
 
 def run(db,api):
     data = api.query('getUpdates')
+    resPos = int(db[0].getItem('lastid','value'))
+    for item in range(len(data)):
+        if data[item]['update_id'] == resPos:
+            data = data[item+1:]
+            print('Skipping '+str(item+1)+' processed messages.')
+            break
     for item in data:
         processItem(item,db,api)
     print('All pending messages processed.')
     while True:
-        time.sleep(1)
+        time.sleep(2) #Max frequency 30 messages/group
         data = api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
         for item in data:
             processItem(item,db,api)
