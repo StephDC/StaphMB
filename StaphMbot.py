@@ -117,8 +117,12 @@ def getName(uid,gid,api,lookup={}):
 def processWarn(db,api,uid,gid,ts,reply):
     print('Processing actual punishment...')
     warnNum = countWarn(db,gid,uid)
+    if warnNum == 0:
+        print("It does not qualify any warning.")
+        return
     if warnNum > 5:
         warnNum = 5
+    print(gid,db[1].hasItem(str(gid)),'warning'+str(warnNum))
     punish = db[1].getItem(str(gid),'warning'+str(warnNum)).split('|')
     print(punish)
     # 0 - Nothing
@@ -176,8 +180,8 @@ def processItem(message,db,api):
                             api.sendMessage(message['message']['chat']['id'],'用法錯誤：請提供警告理由，使對方明白何處做錯。',{'reply_to_message_id':message['message']['message_id']})
                         elif warnInfo[2] in adminList:
                             api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告管理員，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
-                            #elif warnInfo[2] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
-                            #api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
+                        elif warnInfo[2] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
+                            api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                         else:
                             notUnique = True
                             while notUnique:
@@ -187,6 +191,22 @@ def processItem(message,db,api):
                             rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
                             print('Warned '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
                             processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
+            elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
+                if message['message']['chat']['type']!='supergroup':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    adminList = {i['user']['id']:i['user']['username'] for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
+                    if message['message']['from']['id'] not in adminList:
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #DELWARN 解除對其他用戶的警告。',{'reply_to_message_id':message['message']['message_id']})
+                    elif 'reply_to_message' not in message['message']:
+                        api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆被警告用戶發送的原始訊息。',{'reply_to_message_id':message['message']['message_id']})
+                    elif db[2].data.execute('SELECT count(header) from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()[0] == 0:
+                        api.sendMessage(message['message']['chat']['id'],'用法錯誤：該條訊息並未被警告過，請回覆被警告用戶發送的原始訊息。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
+                        print(db[2].remItem(warnInfo[-1]))
+                        print('Removed warning for '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
+                        api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
             addGroup(message['message']['chat']['id'],db)
