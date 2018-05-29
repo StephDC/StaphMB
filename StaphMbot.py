@@ -160,6 +160,10 @@ def processItem(message,db,api):
                 stripText=stripText[:-len(api.info['username'])-1]
             if stripText == '/ping':
                 api.sendMessage(message['message']['chat']['id'],'Hell o\'world!',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/groupid':
+                api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/warnrule':
+                api.sendMessage(message['message']['chat']['id'],'While I would really love to tell you the punishment you may get based on the number of warnings you have, this is still not implemented yet.',{'reply_to_message_id':message['message']['message_id']})
         # Process hashtag
         elif message['message']['text'][0] == '#':
             if len(message['message']['text'])>4 and message['message']['text'][1:5].lower() == 'warn':
@@ -204,7 +208,8 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：該條訊息並未被警告過，請回覆被警告用戶發送的原始訊息。',{'reply_to_message_id':message['message']['message_id']})
                     else:
                         warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
-                        print(db[2].remItem(warnInfo[-1]))
+                        #print(db[2].remItem(warnInfo[-1]))
+                        db[2].remItem(warnInfo[-1])
                         print('Removed warning for '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
                         api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_participant' in message['message']:
