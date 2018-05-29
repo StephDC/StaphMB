@@ -14,9 +14,14 @@ class sqliteDB():
     "This is the file that would replace the old-fashioned PSV DB with the new SQLite database."
     def __init__(self,dbFile,dbTable='main'):
         if type(dbFile) is str:
+            self.filename = dbFile
             self.db = sqlite3.connect(dbFile)
+        elif type(dbFile) is sqliteDB:
+            self.db = dbFile.db
+            self.filename = dbFile.filename
         else:
             self.db = dbFile
+            self.filename = "Unknown"
         self.table = dbTable
         try:
             self.data = self.db.cursor()
