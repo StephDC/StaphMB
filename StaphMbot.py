@@ -166,10 +166,9 @@ def processRule(gid,db):
             else:
                 result += '禁言 '+str(datetime.timedelta(seconds=int(data[item][1])))+'\n'
         elif data[item][0] == '2':
-            if data[item][1] == '0':
-                result += '永久封禁\n'
-            else:
-                result += '封禁 '+str(datetime.timedelta(seconds=int(data[item][1])))+'\n'
+            result += '封禁 '+str(datetime.timedelta(seconds=int(data[item][1])))+'\n'
+        elif data[item][0] == '3':
+            result += '永久封禁\n'
     data = db[1].getItem(str(gid),'fade').split('|')
     if data[0] == '0':
         result += '警告期限：警告永不過期'
