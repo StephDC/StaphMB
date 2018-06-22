@@ -112,7 +112,13 @@ def getName(uid,gid,api,lookup={}):
         result = api.query('getChatMember',{'chat_id':int(gid),'user_id':int(uid)},retry=1)
     except APIError:
         return 'a former admin of this group'
-    return '@'+result['user']['username']
+    return getNameRep(result['user'])
+
+def getNameRep(userObj):
+    if 'username' in userObj:
+        return '@'+userObj['username']
+    elif 'last_name' in userObj:
+        return '@'+userObj['first_name']+userObj['last_name']
 
 def processWarn(db,api,uid,gid,ts,reply):
     print('Processing actual punishment...')
@@ -173,16 +179,25 @@ def processRule(gid,db):
     if data[0] == '0':
         result += '警告期限：警告永不過期'
     elif data[0] == '1':
-        result += '警告期限：'+str(datetime.timedelta(seconds=int(data[item][1])))
+        result += '警告期限：'+str(datetime.timedelta(seconds=int(data[1])))
     elif data[0] == '2':
-        result += '警告期限：每月 1 日解除 1 個警告。'
+        result += '警告期限：每月 1 日解除 '+data[1]+' 個警告。'
     return result
+
+def processCheck(msg,api,db):
+    if message['message']['chat']['type'] == 'private':
+    # Check the warnings for the user itself across the globe
+        api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented D:',{'reply_to_message_id':message['message']['message_id']})
+    elif message['message']['chat']['type'] == 'supergroup':
+    # Check the warnings for the user itself within the group
+        data = db[2].data
+        api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
 
 def processItem(message,db,api):
     print(message['update_id'],'being processed...')
     if 'message' not in message:
         return
-    if 'text' in message['message']:
+    if 'text' in message['message'] and message['message']['text']:
         # Process bot command
         if message['message']['text'][0] == '/':
             stripText = message['message']['text']
@@ -194,13 +209,15 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
                 api.sendMessage(message['message']['chat']['id'],processRule(message['message']['chat']['id'],db),{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/warncheck':
+                processCheck(message,api,db)
         # Process hashtag
         elif message['message']['text'][0] == '#':
             if len(message['message']['text'])>4 and message['message']['text'][1:5].lower() == 'warn':
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
-                    adminList = {i['user']['id']:i['user']['username'] for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
+                    adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
                     if message['message']['from']['id'] not in adminList:
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #WARN 警告其他用戶。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
@@ -223,13 +240,13 @@ def processItem(message,db,api):
                                 notUnique = db[2].hasItem(id[0])
                             db[2].addItem(id+warnInfo)
                             rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
-                            print('Warned '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
+                            print('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['title'])
                             processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
             elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
-                    adminList = {i['user']['id']:i['user']['username'] for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
+                    adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
                     if message['message']['from']['id'] not in adminList:
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #DELWARN 解除對其他用戶的警告。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
@@ -240,7 +257,7 @@ def processItem(message,db,api):
                         warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
                         #print(db[2].remItem(warnInfo[-1]))
                         db[2].remItem(warnInfo[-1])
-                        print('Removed warning for '+message['message']['reply_to_message']['from']['username']+' in group '+message['message']['chat']['title'])
+                        print('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['title'])
                         api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
