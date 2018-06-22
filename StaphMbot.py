@@ -148,6 +148,37 @@ def processWarn(db,api,uid,gid,ts,reply):
             print(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])}))
             api.sendMessage(gid,'該用戶已被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
 
+def processRule(gid,db):
+    result = '警告與懲罰規則：\n'
+    data = [db[1].getItem(str(gid),'warning'+str(i)).split('|') for i in range(1,6)]
+    while len(data) > 1 and data[-1] == data[-2]:
+        data.pop() # Makes the list more compact
+    for item in range(len(data)):
+        if item == len(data)-1:
+            result += str(item+1)+' 個或更多個警告：'
+        else:
+            result += str(item+1)+' 個警告：'
+        if data[item][0] == '0':
+            result += '口頭警告\n'
+        elif data[item][0] == '1':
+            if data[item][1] == '0':
+                result += '永久禁言\n'
+            else:
+                result += '禁言 '+str(datetime.timedelta(seconds=int(data[item][1])))+'\n'
+        elif data[item][0] == '2':
+            if data[item][1] == '0':
+                result += '永久封禁\n'
+            else:
+                result += '封禁 '+str(datetime.timedelta(seconds=int(data[item][1])))+'\n'
+    data = db[1].getItem(str(gid),'fade').split('|')
+    if data[0] == '0':
+        result += '警告期限：警告永不過期'
+    elif data[0] == '1':
+        result += '警告期限：'+str(datetime.timedelta(seconds=int(data[item][1])))
+    elif data[0] == '2':
+        result += '警告期限：每月 1 日解除 1 個警告。'
+    return result
+
 def processItem(message,db,api):
     print(message['update_id'],'being processed...')
     if 'message' not in message:
@@ -163,7 +194,7 @@ def processItem(message,db,api):
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
-                api.sendMessage(message['message']['chat']['id'],'While I would really love to tell you the punishment you may get based on the number of warnings you have, this is still not implemented yet.',{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],processRule(message['message']['chat']['id'],db),{'reply_to_message_id':message['message']['message_id']})
         # Process hashtag
         elif message['message']['text'][0] == '#':
             if len(message['message']['text'])>4 and message['message']['text'][1:5].lower() == 'warn':
