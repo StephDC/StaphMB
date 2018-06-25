@@ -240,7 +240,7 @@ def processItem(message,db,api):
                                 notUnique = db[2].hasItem(id[0])
                             db[2].addItem(id+warnInfo)
                             rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
-                            print('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['title'])
+                            print('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                             processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
             elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
                 if message['message']['chat']['type']!='supergroup':
@@ -257,7 +257,7 @@ def processItem(message,db,api):
                         warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
                         #print(db[2].remItem(warnInfo[-1]))
                         db[2].remItem(warnInfo[-1])
-                        print('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['title'])
+                        print('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                         api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
