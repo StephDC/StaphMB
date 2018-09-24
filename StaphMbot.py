@@ -25,16 +25,23 @@ class APIError(Exception):
     def __repr__(self):
         return '<TGBot Exception="'+self.module+'" Info="'+self.info+'" />'
 
+class stdOut():
+    def __init__(self):
+        pass
+    def writeln(self,data):
+        print(data)
+
 class tgapi:
     __doc__ = 'tgapi - Telegram Chat Bot HTTPS API Wrapper'
 
-    def __init__(self,apikey,maxRetry=5):
+    def __init__(self,apikey,logger=None,maxRetry=5):
+        self.logOut = stdOut() if logger is None else logger
         self.target = 'https://api.telegram.org/bot'+apikey+'/'
         self.retry = maxRetry
         self.info = self.query('getMe')
         if self.info is None:
             raise APIError('API', 'Initialization Self-test Failed')
-        print("Bot "+self.info["username"]+" connected to the Telegram API.")
+        self.logOut.writeln("Bot "+self.info["username"]+" connected to the Telegram API.")
 
     def query(self,met,parameter=None,retry=None):
         req = ur.Request(self.target+met,method='POST')
@@ -58,7 +65,7 @@ class tgapi:
             else:
                 failed = False
                 break
-            print("Query failed. Try again in 5 sec.")
+            self.logOut.writeln("Query failed. Try again in 5 sec.")
             time.sleep(5)
             retryCount += 1
         data = json.loads(resp.read().decode('UTF-8'))
@@ -74,7 +81,7 @@ class tgapi:
         else:
             return False
 
-def initiateDB(fName):
+def initiateDB(fName,outdev):
     try:
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
@@ -89,15 +96,15 @@ def initiateDB(fName):
         warn = sqldb.sqliteDB(conf.db,'warn')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted warn table')
-    print('DB File '+fName+' loaded.')
+    outdev.writeln('DB File '+fName+' loaded.')
     return (conf,group,warn)
 
-def addGroup(gid,db):
+def addGroup(gid,db,outdev):
     if not db[1].hasItem(gid):
         db[1].addItem([str(gid)]+[str(i) for i in db[1].data.execute('select * from "group" where header="default"').fetchone()[1:]])
-        print('I\'ve been added to a new group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
+        outdev.writeln('I\'ve been added to a new group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
     else:
-        print('I\'ve been added back to group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
+        outdev.writeln('I\'ve been added back to group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
 
 def randomID():
     return hex(int.from_bytes(os.urandom(8),'big'))[2:]
@@ -121,37 +128,37 @@ def getNameRep(userObj):
         return '@'+userObj['first_name']+userObj['last_name']
 
 def processWarn(db,api,uid,gid,ts,reply):
-    print('Processing actual punishment...')
+    api.logOut.writeln('Processing actual punishment...')
     warnNum = countWarn(db,gid,uid)
     if warnNum == 0:
-        print("It does not qualify any warning.")
+        api.logOut.writeln("It does not qualify any warning.")
         return
     if warnNum > 5:
         warnNum = 5
-    print(gid,db[1].hasItem(str(gid)),'warning'+str(warnNum))
+    api.logOut.writeln(gid,db[1].hasItem(str(gid)),'warning'+str(warnNum))
     punish = db[1].getItem(str(gid),'warning'+str(warnNum)).split('|')
-    print(punish)
+    api.logOut.writeln(punish)
     # 0 - Nothing
     # 1 - Mute
     # 2 - Kick
     if punish[0] == '1':
         if len(punish) == 1 or punish[1] == '0':
             # Forever
-            print(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False}))
+            api.logOut.writeln(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False}))
             api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
-            print(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False}))
+            api.logOut.writeln(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False}))
             api.sendMessage(gid,'該用戶已被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
     if punish[0] == '3':
         if len(punish) == 1 or punish[1] == '0':
-            print(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)}))
+            api.logOut.writeln(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)}))
             api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
-            print(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])}))
+            api.logOut.writeln(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])}))
             api.sendMessage(gid,'該用戶已被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
 
 def processRule(gid,db):
@@ -194,7 +201,7 @@ def processCheck(msg,api,db):
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
 
 def processItem(message,db,api):
-    print(message['update_id'],'being processed...')
+    api.logOut.writeln(message['update_id'],'being processed...')
     if 'message' not in message:
         return
     if 'text' in message['message'] and message['message']['text']:
@@ -240,7 +247,7 @@ def processItem(message,db,api):
                                 notUnique = db[2].hasItem(id[0])
                             db[2].addItem(id+warnInfo)
                             rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
-                            print('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
+                            api.logOut.writeln('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                             processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
             elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
                 if message['message']['chat']['type']!='supergroup':
@@ -257,11 +264,11 @@ def processItem(message,db,api):
                         warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
                         #print(db[2].remItem(warnInfo[-1]))
                         db[2].remItem(warnInfo[-1])
-                        print('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
+                        api.logOut.writeln('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                         api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
-            addGroup(message['message']['chat']['id'],db)
+            addGroup(message['message']['chat']['id'],db,api.logOut)
     db[0].addItem(['lastid',message['update_id']])
     db[0].addItem(['lasttime',message['message']['date']])
 
@@ -271,11 +278,11 @@ def run(db,api):
     for item in range(len(data)):
         if data[item]['update_id'] == resPos:
             data = data[item+1:]
-            print('Skipping '+str(item+1)+' processed messages.')
+            api.logOut.writeln('Skipping '+str(item+1)+' processed messages.')
             break
     for item in data:
         processItem(item,db,api)
-    print('All pending messages processed.')
+    api.logOut.writeln('All pending messages processed.')
     while True:
         time.sleep(2) #Max frequency 30 messages/group
         data = api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
@@ -283,17 +290,18 @@ def run(db,api):
             processItem(item,db,api)
 
 def main(args):
-    if len(args)!=2:
+    outdev = open(args[2],'a') if len(args)==3 else stdOut()
+    if len(args) not in (2,3):
         print('FATAL ERROR: Incorrect number of parameters given.')
         print(__doc__)
         sys.exit(1)
     try:
-        api = tgapi(args[1])
+        api = tgapi(args[1],outdev)
     except APIError:
         print('FATAL ERROR: API Initialization Self-test Failed.')
         sys.exit(2)
     try:
-        db = initiateDB(args[0])
+        db = initiateDB(args[0],outdev)
     except APIError:
         print('FATAL ERROR: Corrupted database or wrong parameter given.')
         sys.exit(3)
