@@ -26,10 +26,13 @@ class APIError(Exception):
         return '<TGBot Exception="'+self.module+'" Info="'+self.info+'" />'
 
 class stdOut():
-    def __init__(self):
-        pass
+    def __init__(self,fName=None):
+        self.fh = None if fName is None else open(fName,'a',1)
     def writeln(self,data):
-        print(data)
+        if self.fh is None:
+            print('['+str(int(time.time()))+'] '+data)
+        else:
+            self.fh.write('['+str(int(time.time()))+'] '+data+'\n')
 
 class tgapi:
     __doc__ = 'tgapi - Telegram Chat Bot HTTPS API Wrapper'
@@ -144,21 +147,21 @@ def processWarn(db,api,uid,gid,ts,reply):
     if punish[0] == '1':
         if len(punish) == 1 or punish[1] == '0':
             # Forever
-            api.logOut.writeln(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False}))
+            api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False})))
             api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
-            api.logOut.writeln(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False}))
+            api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False})))
             api.sendMessage(gid,'該用戶已被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
     if punish[0] == '3':
         if len(punish) == 1 or punish[1] == '0':
-            api.logOut.writeln(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)}))
+            api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)})))
             api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
-            api.logOut.writeln(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])}))
+            api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])})))
             api.sendMessage(gid,'該用戶已被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
 
 def processRule(gid,db):
@@ -201,7 +204,7 @@ def processCheck(msg,api,db):
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
 
 def processItem(message,db,api):
-    api.logOut.writeln(message['update_id'],'being processed...')
+    api.logOut.writeln(str(message['update_id'])+' being processed...')
     if 'message' not in message:
         return
     if 'text' in message['message'] and message['message']['text']:
@@ -212,8 +215,12 @@ def processItem(message,db,api):
                 stripText=stripText[:-len(api.info['username'])-1]
             if stripText == '/ping':
                 api.sendMessage(message['message']['chat']['id'],'Hell o\'world!',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/stupid_bluedeck':
+                api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/lastid':
+                api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
                 api.sendMessage(message['message']['chat']['id'],processRule(message['message']['chat']['id'],db),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warncheck':
@@ -247,7 +254,7 @@ def processItem(message,db,api):
                                 notUnique = db[2].hasItem(id[0])
                             db[2].addItem(id+warnInfo)
                             rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
-                            api.logOut.writeln('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
+                            # api.logOut.writeln('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                             processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
             elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
                 if message['message']['chat']['type']!='supergroup':
@@ -264,7 +271,7 @@ def processItem(message,db,api):
                         warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
                         #print(db[2].remItem(warnInfo[-1]))
                         db[2].remItem(warnInfo[-1])
-                        api.logOut.writeln('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
+                        # api.logOut.writeln('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                         api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
@@ -290,7 +297,7 @@ def run(db,api):
             processItem(item,db,api)
 
 def main(args):
-    outdev = open(args[2],'a') if len(args)==3 else stdOut()
+    outdev = stdOut(args[2]) if len(args)==3 else stdOut()
     if len(args) not in (2,3):
         print('FATAL ERROR: Incorrect number of parameters given.')
         print(__doc__)
