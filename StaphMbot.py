@@ -138,7 +138,7 @@ def processWarn(db,api,uid,gid,ts,reply):
         return
     if warnNum > 5:
         warnNum = 5
-    api.logOut.writeln(gid,db[1].hasItem(str(gid)),'warning'+str(warnNum))
+    api.logOut.writeln(str(gid)+' '+str(db[1].hasItem(str(gid)))+' warning '+str(warnNum))
     punish = db[1].getItem(str(gid),'warning'+str(warnNum)).split('|')
     api.logOut.writeln(punish)
     # 0 - Nothing
