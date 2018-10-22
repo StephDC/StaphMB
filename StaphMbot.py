@@ -30,9 +30,9 @@ class stdOut():
         self.fh = None if fName is None else open(fName,'a',1)
     def writeln(self,data):
         if self.fh is None:
-            print('['+str(int(time.time()))+'] '+data)
+            print('['+str(int(time.time()))+'] '+str(data))
         else:
-            self.fh.write('['+str(int(time.time()))+'] '+data+'\n')
+            self.fh.write('['+str(int(time.time()))+'] '+str(data)+'\n')
 
 class tgapi:
     __doc__ = 'tgapi - Telegram Chat Bot HTTPS API Wrapper'
@@ -221,6 +221,9 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/lastid':
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/uptime':
+                import subprocess
+                api.sendMessage(message['message']['chat']['id'],'Uptime: '+subprocess.check_output('uptime').decode().strip(),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
                 api.sendMessage(message['message']['chat']['id'],processRule(message['message']['chat']['id'],db),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warncheck':
