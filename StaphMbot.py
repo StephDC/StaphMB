@@ -215,6 +215,8 @@ def processItem(message,db,api):
                 stripText=stripText[:-len(api.info['username'])-1]
             if stripText == '/ping':
                 api.sendMessage(message['message']['chat']['id'],'Hell o\'world!',{'reply_to_message_id':message['message']['message_id']})
+            if stripText == '/anyone':
+                api.sendMessage(message['message']['chat']['id'],'沒有人，你悲劇了。',{'reply_to_message_id':message['message']['reply_to_message']['message_id'] if 'reply_to_message' in message['message'] else message['message']['message_id']})
             elif stripText == '/stupid_bluedeck':
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/groupid':
