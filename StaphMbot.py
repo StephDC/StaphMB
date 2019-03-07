@@ -219,6 +219,8 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == "/userid":
+                api.sendMessage(message['message']['chat']['id'],'User ID: '+str(message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['from']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/lastid':
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
