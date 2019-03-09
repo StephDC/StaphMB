@@ -84,12 +84,24 @@ class tgapi:
         else:
             return False
 
+# A few output formatting functions
+class l10n:
+    def __init__(self,lang = "en_US"):
+        self.lang = lang
+        print("This class is not ready to be instantiated now. Please don't instantiate and directly use the functions")
+    warnSuccess = lambda x,c: '警告成功。該用戶現在共有 '+x+' 個警告。'+('\n'+c) if c else ''
+    delWarnSuccess = lambda t,a,r,c: '該條訊息曾於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。警告現已取消。該用戶現有 '+c+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。'
+    warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。'
+    epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
+    notifyWarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+"\n Time: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nMessage:\n'+m if m else '<Multimedia Message>'
+    notifyDelwarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+'\n Time: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nMessage:\n' + m if m else '<Multimedia Message>'
+
 def initiateDB(fName,outdev):
     try:
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.0':
+    if conf.getItem('dbver','value') != '1.1':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -121,7 +133,7 @@ def getName(uid,gid,api,lookup={}):
     try:
         result = api.query('getChatMember',{'chat_id':int(gid),'user_id':int(uid)},retry=1)
     except APIError:
-        return 'a former admin of this group'
+        return 'a former member of this group'
     return getNameRep(result['user'])
 
 def getNameRep(userObj):
@@ -150,19 +162,19 @@ def processWarn(db,api,uid,gid,ts,reply):
             api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False})))
             api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
         elif int(ts)+int(punish[1]) - time.time() < 60:
-            api.sendMessage(gid,'該用戶應當被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
+            api.sendMessage(gid,'該用戶應當被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
             api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False})))
-            api.sendMessage(gid,'該用戶已被禁言至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
+            api.sendMessage(gid,'該用戶已被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
     if punish[0] == '3':
         if len(punish) == 1 or punish[1] == '0':
             api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)})))
             api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
         elif int(ts)+int(punish[1]) - time.time() < 60:
-            api.sendMessage(gid,'該用戶應當被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
+            api.sendMessage(gid,'該用戶應當被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
             api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])})))
-            api.sendMessage(gid,'該用戶已被封禁至 '+datetime.datetime.fromtimestamp(int(ts)+int(punish[1])).isoformat()+' 。',{'reply_to_message_id':reply})
+            api.sendMessage(gid,'該用戶已被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
 
 def processRule(gid,db):
     result = '警告與懲罰規則：\n'
@@ -245,7 +257,7 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被警告的訊息。',{'reply_to_message_id':message['message']['message_id']})
                     elif db[2].data.execute('SELECT count(header) from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()[0]:
                         warnInfo = db[2].data.execute('SELECT time,admin,reason from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
-                        api.sendMessage(message['message']['chat']['id'],'抱歉，該條訊息已於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。',{'reply_to_message_id':message['message']['message_id']})
+                        api.sendMessage(message['message']['chat']['id'],l10n.warnedFail(l10n.epochToISO(int(warnInfo[0])),getName(warnInfo[1],message['message']['chat']['id'],api,adminList),warnInfo[2]),{'reply_to_message_id':message['message']['message_id']})
                     else:
                         warnInfo = [int(time.time()),message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'],message['message']['reply_to_message']['message_id'],message['message']['from']['id'],message['message']['text'][5:].strip()]
                         if not warnInfo[-1]:
@@ -255,12 +267,14 @@ def processItem(message,db,api):
                         elif warnInfo[2] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
                             api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                         else:
-                            notUnique = True
-                            while notUnique:
-                                id = [randomID()]
-                                notUnique = db[2].hasItem(id[0])
-                            db[2].addItem(id+warnInfo)
-                            rep = api.sendMessage(message['message']['chat']['id'],'警告成功。該用戶現在共有 '+str(countWarn(db,warnInfo[1],warnInfo[2]))+' 個警告。',{'reply_to_message_id':message['message']['message_id']})
+                            wid = [randomID()]
+                            while db[2].hasItem(wid[0]):
+                                wid = [randomID()]
+                            db[2].addItem(wid+warnInfo)
+                            rep = api.sendMessage(message['message']['chat']['id'],l10n.warnSuccess(countWarn(db,warnInfo[1],warnInfo[2])),{'reply_to_message_id':message['message']['message_id']})
+                            #  i,t,u,uid,a,c,m,r
+                            if db[1].getItem(message['message']['chat']['id'],'notify'):
+                                api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyWarn(wid[0],l10n.epochToISO(warnInfo[0]),getNameRep(message['message']['reply_to_message']['from']),warnInfo[2],getNameRep(message['message']['from']),str(countWarn(db,warnInfo[1],warnInfo[2])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,warnInfo[-1]))
                             # api.logOut.writeln('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                             processWarn(db,api,warnInfo[2],warnInfo[1],message['message']['reply_to_message']['date'],rep)
             elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
@@ -276,10 +290,12 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：該條訊息並未被警告過，請回覆被警告用戶發送的原始訊息。',{'reply_to_message_id':message['message']['message_id']})
                     else:
                         warnInfo = db[2].data.execute('SELECT time,admin,reason,header from warn where "group"=? and "text"=?',(str(message['message']['chat']['id']),str(message['message']['reply_to_message']['message_id']))).fetchone()
-                        #print(db[2].remItem(warnInfo[-1]))
                         db[2].remItem(warnInfo[-1])
                         # api.logOut.writeln('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
-                        api.sendMessage(message['message']['chat']['id'],'該條訊息曾於 '+datetime.datetime.fromtimestamp(int(warnInfo[0])).isoformat()+' 被 '+getName(warnInfo[1],message['message']['chat']['id'],api,adminList)+' 以理由「 '+warnInfo[2]+' 」警告過。警告現已取消。該用戶現有 '+str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。',{'reply_to_message_id':message['message']['message_id']})
+                        api.sendMessage(message['message']['chat']['id'],l10n.delWarnSuccess(l10n.epochToISO(int(warnInfo[0])),getName(warnInfo[1],message['message']['chat']['id'],api,adminList),warnInfo[2],str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))),{'reply_to_message_id':message['message']['message_id']})
+                        #  i,t,u,uid,a,c,m,r
+                        if db[1].getItem(message['message']['chat']['id'],'notify'):
+                            api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyWarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
             addGroup(message['message']['chat']['id'],db,api.logOut)
