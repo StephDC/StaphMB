@@ -93,8 +93,8 @@ class l10n:
     delWarnSuccess = lambda t,a,r,c: '該條訊息曾於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。警告現已取消。該用戶現有 '+c+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。'
     warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。'
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
-    notifyWarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+"\n Time: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nMessage:\n'+m if m else '<Multimedia Message>'
-    notifyDelwarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+'\n Time: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nMessage:\n' + m if m else '<Multimedia Message>'
+    notifyWarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '<Multimedia Message>')
+    notifyDelwarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '<Multimedia Message>')
     notifyPunish = lambda p,t,u,uid: "User "+u+" ("+uid+") has been "+p+" till "+t+"."
 
 def initiateDB(fName,outdev):
@@ -166,28 +166,28 @@ def processWarn(db,api,uo,gid,ts,reply):
             # Forever
             api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False})))
             api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
-            if db[1].getItem(message['message']['chat']['id'],'notify'):
-                api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyPunish('silenced','forever',uname,uid))
+            if db[1].getItem(str(gid),'notify'):
+                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced','forever',uname,uid))
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
             api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False})))
             api.sendMessage(gid,'該用戶已被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
-            if db[1].getItem(message['message']['chat']['id'],'notify'):
-                api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyPunish('silenced',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
+            if db[1].getItem(str(gid),'notify'):
+                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
     if punish[0] == '3':
         if len(punish) == 1 or punish[1] == '0':
             api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)})))
             api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
-            if db[1].getItem(message['message']['chat']['id'],'notify'):
-                api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyPunish('kicked','forever',uname,uid))
+            if db[1].getItem(str(gid),'notify'):
+                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked','forever',uname,uid))
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
             api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])})))
             api.sendMessage(gid,'該用戶已被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
-            if db[1].getItem(message['message']['chat']['id'],'notify'):
-                api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyPunish('kicked',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
+            if db[1].getItem(str(gid),'notify'):
+                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
 
 def processRule(gid,db):
     result = '警告與懲罰規則：\n'
@@ -284,10 +284,10 @@ def processItem(message,db,api):
                             while db[2].hasItem(wid[0]):
                                 wid = [randomID()]
                             db[2].addItem(wid+warnInfo)
-                            rep = api.sendMessage(message['message']['chat']['id'],l10n.warnSuccess(countWarn(db,warnInfo[1],warnInfo[2])),{'reply_to_message_id':message['message']['message_id']})
+                            rep = api.sendMessage(message['message']['chat']['id'],l10n.warnSuccess(str(countWarn(db,warnInfo[1],warnInfo[2])),db[1].getItem(str(message['message']['chat']['id']),'msg')),{'reply_to_message_id':message['message']['message_id']})
                             #  i,t,u,uid,a,c,m,r
-                            if db[1].getItem(message['message']['chat']['id'],'notify'):
-                                api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyWarn(wid[0],l10n.epochToISO(warnInfo[0]),getNameRep(message['message']['reply_to_message']['from']),warnInfo[2],getNameRep(message['message']['from']),str(countWarn(db,warnInfo[1],warnInfo[2])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,warnInfo[-1]))
+                            if db[1].getItem(str(message['message']['chat']['id']),'notify'):
+                                api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyWarn(wid[0],l10n.epochToISO(warnInfo[0]),getNameRep(message['message']['reply_to_message']['from']),str(warnInfo[2]),getNameRep(message['message']['from']),str(countWarn(db,warnInfo[1],warnInfo[2])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,warnInfo[-1]))
                             # api.logOut.writeln('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                             processWarn(db,api,message['message']['reply_to_message']['from'],warnInfo[1],message['message']['reply_to_message']['date'],rep)
             elif len(message['message']['text'])>7 and message['message']['text'][1:8].lower() == 'delwarn':
@@ -307,8 +307,8 @@ def processItem(message,db,api):
                         # api.logOut.writeln('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                         api.sendMessage(message['message']['chat']['id'],l10n.delWarnSuccess(l10n.epochToISO(int(warnInfo[0])),getName(warnInfo[1],message['message']['chat']['id'],api,adminList),warnInfo[2],str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))),{'reply_to_message_id':message['message']['message_id']})
                         #  i,t,u,uid,a,c,m,r
-                        if db[1].getItem(message['message']['chat']['id'],'notify'):
-                            api.sendMessage(db[1].getItem(message['message']['chat']['id'],'notify'),l10n.notifyWarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
+                        if db[1].getItem(str(message['message']['chat']['id']),'notify'):
+                            api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyDelwarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
     elif 'new_chat_participant' in message['message']:
         if message['message']['new_chat_participant']['id'] == api.info["id"]:
             addGroup(message['message']['chat']['id'],db,api.logOut)
