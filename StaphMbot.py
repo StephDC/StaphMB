@@ -141,6 +141,8 @@ def getNameRep(userObj):
         return '@'+userObj['username']
     elif 'last_name' in userObj:
         return '@'+userObj['first_name']+userObj['last_name']
+    else:
+        return '@'+userObj['first_name']
 
 def processWarn(db,api,uid,gid,ts,reply):
     api.logOut.writeln('Processing actual punishment...')
