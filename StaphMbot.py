@@ -69,6 +69,7 @@ class tgapi:
                 failed = False
                 break
             self.logOut.writeln("Query failed. Try again in 5 sec.")
+            self.logOut.writeln("Failed Request:\nMethod: "+met+"\nParameters: "+str(parameter))
             time.sleep(5)
             retryCount += 1
         data = json.loads(resp.read().decode('UTF-8'))
@@ -229,6 +230,7 @@ def processCheck(msg,api,db):
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
 
 def processItem(message,db,api):
+    #print(message)
     api.logOut.writeln(str(message['update_id'])+' being processed...')
     if 'message' not in message:
         return
