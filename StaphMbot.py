@@ -135,7 +135,7 @@ def countWarn(db,gid,uid):
         counter = 0
         warnRec = db[2].data.execute('select time from warn where user=? and "group"=? and header != \'header\'',(str(uid),str(gid))).fetchall()
         for item in warnRec:
-            counter += 1 if int(item[0]) > beforeTime
+            counter += 1 if int(item[0]) > beforeTime else 0
         return counter
 
 def getName(uid,gid,api,lookup={}):
