@@ -128,7 +128,15 @@ def randomID():
     return hex(int.from_bytes(os.urandom(8),'big'))[2:]
 
 def countWarn(db,gid,uid):
-    return db[2].data.execute('select count(header) from warn where user=? and "group"=?',(str(uid),str(gid))).fetchone()[0]
+    if db[1].getItem(gid,'fade') == '0':
+        return db[2].data.execute('select count(header) from warn where user=? and "group"=?',(str(uid),str(gid))).fetchone()[0]
+    elif db[1].getItem(gid,'fade')[[0]] == '1':
+        beforeTime = time.time() - int(db[1].getItem(gid,'fade').split('|')[1])
+        counter = 0
+        warnRec = db[2].data.execute('select time from warn where user=? and "group"=? and header != \'header\'',(str(uid),str(gid))).fetchall()
+        for item in warnRec:
+            counter += 1 if int(item[0]) > beforeTime
+        return counter
 
 def getName(uid,gid,api,lookup={}):
     if uid in lookup:
