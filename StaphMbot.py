@@ -97,6 +97,7 @@ class l10n:
     notifyWarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '<Multimedia Message>')
     notifyDelwarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '<Multimedia Message>')
     notifyPunish = lambda p,t,u,uid: "User "+u+" ("+uid+") has been "+p+" till "+t+"."
+    notifyPunishFail = lambda p,t,u,uid: "User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
 
 def initiateDB(fName,outdev):
     try:
@@ -145,6 +146,13 @@ def getNameRep(userObj):
         return '@'+userObj['first_name']+userObj['last_name']
     else:
         return '@'+userObj['first_name']
+
+def getAdminList(adminList):
+    result = {}
+    for item in adminList:
+        if 'can_restrict_members' in item:
+            result[i['user']['id']] = getNameRep(i['user'])
+    return result
 
 def processWarn(db,api,uo,gid,ts,reply):
     uid = str(uo['id'])
@@ -265,7 +273,7 @@ def processItem(message,db,api):
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
-                    adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
+                    adminList = getAdminList(api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']}))
                     if message['message']['from']['id'] not in adminList:
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #WARN 警告其他用戶。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
