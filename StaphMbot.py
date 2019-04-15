@@ -159,7 +159,7 @@ def getAdminList(adminList):
     result = {}
     for item in adminList:
         if 'can_restrict_members' in item:
-            result[i['user']['id']] = getNameRep(i['user'])
+            result[item['user']['id']] = getNameRep(item['user'])
     return result
 
 def processWarn(db,api,uo,gid,ts,reply):
