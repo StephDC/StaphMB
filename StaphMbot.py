@@ -130,10 +130,11 @@ def randomID():
 def countWarn(db,gid,uid):
     if db[1].getItem(str(gid),'fade') == '0':
         return db[2].data.execute('select count(header) from warn where user=? and "group"=?',(str(uid),str(gid))).fetchone()[0]
-    elif db[1].getItem(str(gid),'fade')[[0]] == '1':
+    elif db[1].getItem(str(gid),'fade')[0] == '1':
         beforeTime = time.time() - int(db[1].getItem(str(gid),'fade').split('|')[1])
         counter = 0
         warnRec = db[2].data.execute('select time from warn where user=? and "group"=? and header != \'header\'',(str(uid),str(gid))).fetchall()
+        # print(warnRec,beforeTime)
         for item in warnRec:
             counter += 1 if int(item[0]) > beforeTime else 0
         return counter
