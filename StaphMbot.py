@@ -273,7 +273,10 @@ def processItem(message,db,api):
                 import subprocess
                 api.sendMessage(message['message']['chat']['id'],'Uptime: '+subprocess.check_output('uptime').decode().strip(),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
-                api.sendMessage(message['message']['chat']['id'],processRule(message['message']['chat']['id'],db),{'reply_to_message_id':message['message']['message_id']})
+                if message['message']['chat']['type']!='supergroup':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    api.sendMessage(message['message']['chat']['id'],processRule(message['message']['chat']['id'],db),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warncheck':
                 processCheck(message,api,db)
         # Process hashtag
