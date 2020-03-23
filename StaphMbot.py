@@ -333,9 +333,10 @@ def processItem(message,db,api):
                         #  i,t,u,uid,a,c,m,r
                         if db[1].getItem(str(message['message']['chat']['id']),'notify'):
                             api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyDelwarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
-    elif 'new_chat_participant' in message['message']:
-        if message['message']['new_chat_participant']['id'] == api.info["id"]:
-            addGroup(message['message']['chat']['id'],db,api.logOut)
+    elif 'new_chat_members' in message['message']:
+        for newMember in message['message']['new_chat_members']:
+            if newMember['id'] == api.info["id"]:
+                addGroup(message['message']['chat']['id'],db,api.logOut)
     db[0].addItem(['lastid',message['update_id']])
     db[0].addItem(['lasttime',message['message']['date']])
 
