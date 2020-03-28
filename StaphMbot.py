@@ -152,9 +152,12 @@ def getNameRep(userObj):
     if 'username' in userObj:
         return '@'+userObj['username']
     elif 'last_name' in userObj:
-        return '@'+userObj['first_name']+userObj['last_name']
+        return '@'+userObj['first_name']+' '+userObj['last_name']
     else:
         return '@'+userObj['first_name']
+
+def getMsgText(msgObj):
+    return '['+getNameRep(msgObj['from'])[1:]+'] '+msgObj['text'] if msgObj['text'] else '['+getNameRep(msgObj['from'])[1:]+'] <Multimedia Message>'
 
 def getAdminList(adminList):
     result = {}
