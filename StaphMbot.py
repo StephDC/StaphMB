@@ -47,7 +47,7 @@ class tgapi:
             raise APIError('API', 'Initialization Self-test Failed')
         self.logOut.writeln("Bot "+self.info["username"]+" connected to the Telegram API.")
 
-    def query(self,met,parameter=None,retry=1):
+    def query(self,met,parameter=None,retry=None):
         req = ur.Request(self.target+met,method='POST')
         req.add_header('User-Agent','StaphMbot/0.1 (+https://github.com/StephDC/StaphMbot)')
         if parameter is not None:
@@ -276,6 +276,7 @@ def processCheck(msg,api,db):
 
 def processItem(message,db,api):
     #print(message)
+    db[0].addItem(['lastid',message['update_id']])
     api.logOut.writeln(str(message['update_id'])+' being processed...')
     if 'message' not in message:
         return
@@ -365,7 +366,6 @@ def processItem(message,db,api):
         for newMember in message['message']['new_chat_members']:
             if newMember['id'] == api.info["id"]:
                 addGroup(message['message']['chat']['id'],db,api.logOut)
-    db[0].addItem(['lastid',message['update_id']])
     db[0].addItem(['lasttime',message['message']['date']])
 
 def run(db,api):
