@@ -167,6 +167,10 @@ def getAdminList(adminList):
     return result
 
 def processWarn(db,api,uo,gid,ts,reply):
+    ## Verify at least I can do something...
+    tmp = api.query('getChatMember',{'chat_id':gid,'user_id':api.info['id']})
+    cannotPunish = not(tmp['status'] == 'creator' or ('can_restrict_members' in tmp and tmp['can_restrict_members']))
+    ##
     uid = str(uo['id'])
     uname = getNameRep(uo)
     api.logOut.writeln('Processing actual punishment...')
@@ -185,30 +189,50 @@ def processWarn(db,api,uo,gid,ts,reply):
     if punish[0] == '1':
         if len(punish) == 1 or punish[1] == '0':
             # Forever
-            api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False})))
-            api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
-            if db[1].getItem(str(gid),'notify'):
-                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced','forever',uname,uid))
+            ## Cannot punish
+            if cannotPunish:
+                api.sendMessage(gid,'該用戶應當被永久禁言，然而機器人流下了沒有權利的淚水。',{'reply_to_message_id':reply})
+            ## Can punish
+            else:
+                api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False})))
+                api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
+                if db[1].getItem(str(gid),'notify'):
+                    api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced','forever',uname,uid))
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
-            api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False})))
-            api.sendMessage(gid,'該用戶已被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
-            if db[1].getItem(str(gid),'notify'):
-                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
-    if punish[0] == '3':
-        if len(punish) == 1 or punish[1] == '0':
-            api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)})))
-            api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
-            if db[1].getItem(str(gid),'notify'):
-                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked','forever',uname,uid))
+            ## Cannot punish
+            if cannotPunish:
+                api.sendMessage(gid,'該用戶應當被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' ，然而機器人流下了沒有權利的淚水。',{'reply_to_message_id':reply})
+            ## Can punish
+            else:
+                api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False})))
+                api.sendMessage(gid,'該用戶已被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
+                if db[1].getItem(str(gid),'notify'):
+                    api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
+    if punish[0] == '2' or punish[0] == '3':
+        if len(punish) == 1 or punish[1] == '0' or punish[0] == '3':
+            ## Cannot punish
+            if cannotPunish:
+                api.sendMessage(gid,'該用戶應當被永久封禁，然而機器人流下了沒有權利的淚水。',{'reply_to_message_id':reply})
+            ## Can punish
+            else:
+                api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)})))
+                api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
+                if db[1].getItem(str(gid),'notify'):
+                    api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked','forever',uname,uid))
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
         else:
-            api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])})))
-            api.sendMessage(gid,'該用戶已被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
-            if db[1].getItem(str(gid),'notify'):
-                api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
+            ## Cannot punish
+            if cannotPunish:
+                api.sendMessage(gid,'該用戶應當被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而機器人流下了沒有權利的淚水。',{'reply_to_message_id':reply})
+            # Can punish
+            else:
+                api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])})))
+                api.sendMessage(gid,'該用戶已被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
+                if db[1].getItem(str(gid),'notify'):
+                    api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
 
 def processRule(gid,db):
     result = '警告與懲罰規則：\n'
