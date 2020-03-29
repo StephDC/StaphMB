@@ -19,6 +19,7 @@ Version:\n\t'''+str(__version__)
 
 class APIError(Exception):
     def __init__(self,module,info):
+        self.module = module
         self.info = info
     def __str__(self):
         return 'Telegram Bot '+self.module+' Exception: '+self.info
@@ -46,7 +47,7 @@ class tgapi:
             raise APIError('API', 'Initialization Self-test Failed')
         self.logOut.writeln("Bot "+self.info["username"]+" connected to the Telegram API.")
 
-    def query(self,met,parameter=None,retry=None):
+    def query(self,met,parameter=None,retry=1):
         req = ur.Request(self.target+met,method='POST')
         req.add_header('User-Agent','StaphMbot/0.1 (+https://github.com/StephDC/StaphMbot)')
         if parameter is not None:
