@@ -287,7 +287,7 @@ def processItem(message,db,api):
             if '@'+api.info['username'] in stripText:
                 stripText=stripText[:-len(api.info['username'])-1]
             if stripText == '/ping':
-                api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-msg['message']['date'])+'seconds!',{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-message['message']['date'])+' seconds!',{'reply_to_message_id':message['message']['message_id']})
             if stripText == '/anyone':
                 api.sendMessage(message['message']['chat']['id'],'沒有人，你悲劇了。',{'reply_to_message_id':message['message']['reply_to_message']['message_id'] if 'reply_to_message' in message['message'] else message['message']['message_id']})
             elif stripText == '/stupid_bluedeck':
