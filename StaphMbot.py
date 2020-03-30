@@ -91,7 +91,7 @@ class l10n:
     def __init__(self,lang = "en_US"):
         self.lang = lang
         print("This class is not ready to be instantiated now. Please don't instantiate and directly use the functions")
-    warnSuccess = lambda x,c: '警告成功。該用戶現在共有 '+x+' 個警告。'+('\n'+c) if c else ''
+    warnSuccess = lambda x,c: '警告成功。該用戶現在共有 '+x+' 個警告。'+('\n'+c) if (c and c != "None") else ''
     delWarnSuccess = lambda t,a,r,c: '該條訊息曾於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。警告現已取消。該用戶現有 '+c+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。'
     warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。'
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
