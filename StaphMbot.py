@@ -266,10 +266,10 @@ def processRule(gid,db):
     return result
 
 def processCheck(msg,api,db):
-    if message['message']['chat']['type'] == 'private':
+    if msg['message']['chat']['type'] == 'private':
     # Check the warnings for the user itself across the globe
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented D:',{'reply_to_message_id':message['message']['message_id']})
-    elif message['message']['chat']['type'] == 'supergroup':
+    elif msg['message']['chat']['type'] == 'supergroup':
     # Check the warnings for the user itself within the group
         data = db[2].data
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
