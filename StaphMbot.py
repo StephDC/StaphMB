@@ -105,7 +105,7 @@ def initiateDB(fName,outdev):
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.1':
+    if conf.getItem('dbver','value') != '1.2':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -366,6 +366,10 @@ def processItem(message,db,api):
         for newMember in message['message']['new_chat_members']:
             if newMember['id'] == api.info["id"]:
                 addGroup(message['message']['chat']['id'],db,api.logOut)
+                groupBlacklist = db[0].getItem('blacklist','value').split('|')
+                if str(message['message']['chat']['id']) in groupBlacklist:
+                    api.sendMessage(message['message']['chat']['id'],"This group has been blacklisted!")
+                    api.query("leaveChat",{"chat_id":message['message']['chat']['id']})
     db[0].addItem(['lasttime',message['message']['date']])
 
 def run(db,api):
