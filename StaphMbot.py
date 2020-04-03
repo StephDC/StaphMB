@@ -209,7 +209,7 @@ def processWarn(db,api,uo,gid,ts,reply):
             else:
                 api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1]),'can_send_messages':False})))
                 api.sendMessage(gid,'該用戶已被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
-                if db[1].getItem(str(gid),'notify'):
+                if db[1].getItem(str(gid),'notify') != 'None':
                     api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
     if punish[0] == '2' or punish[0] == '3':
         if len(punish) == 1 or punish[1] == '0' or punish[0] == '3':
