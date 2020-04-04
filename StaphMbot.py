@@ -367,8 +367,8 @@ def processItem(message,db,api):
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
-                    adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
-                    if message['message']['from']['id'] not in adminList:
+                    reqUser = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    if (reqUser['status'] != 'creator') and (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #SETWARNRULE 修改警告懲罰規則。',{'reply_to_message_id':message['message']['message_id']})
                     else:
                         newRule = message['message']['text'].split('\n')[1:]
@@ -398,6 +398,36 @@ def processItem(message,db,api):
                                 tmp += [db[1].getItem(str(message['message']['chat']['id']),'msg')]
                                 db[1].addItem(tmp)
                                 api.sendMessage(message['message']['chat']['id'],"警告懲罰規則已修改成功。",{'reply_to_message_id':message['message']['message_id']})
+            elif len(message['message']['text'])>11 and message['message']['text'][1:12].lower() == 'setwarnfade':
+                if message['message']['chat']['type']!='supergroup':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    reqUser = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    if (reqUser['status'] != 'creator') and (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #SETWARNFADE 修改警告懲罰規則。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        newRule = message['message']['text'].split(' ')[1:]
+                        invalidRule = False
+                        if not newRule:
+                            api.sendMessage(message['message']['chat']['id'],"用法說明：\n#SETWARNFADE 規則\n\n規則類型：\n0: 警告永不過期\n1|x: 警告 x 秒後過期",{'reply_to_message_id':message['message']['message_id']})
+                            invalidRule = True
+                        else:
+                            dbRule = newRule[0].split('|')
+                            if (dbRule[0] == '1' and len(dbRule) != 2) or (dbRule[0] == '0' and len(dbRule) != 1):
+                                api.sendMessage(message['message']['chat']['id'],"規則格式錯誤：請參見 #SETWARNFADE 規則說明。",{"reply_to_message_id":message['message']['message_id']})
+                                invalidRule = True
+                            else:
+                                if dbRule[0] == '1':
+                                    try:
+                                        dbRule[0] += '|'+str(int(dbRule[1]))
+                                    except ValueError:
+                                        api.sendMessage(message['message']['chat']['id'],"規則格式錯誤：請參見 #SETWARNFADE 規則說明。",{"reply_to_message_id":message['message']['message_id']})
+                                        invalidRule = True
+                            if not invalidRule:
+                                db[1].data.execute('UPDATE "group" SET "fade"=? WHERE header=?',(dbRule[0],str(message['message']['chat']['id'])))
+                                db[1].db.commit()
+                                api.sendMessage(message['message']['chat']['id'],"警告過期規則已修改成功。",{'reply_to_message_id':message['message']['message_id']})
+
     elif 'new_chat_members' in message['message']:
         for newMember in message['message']['new_chat_members']:
             if newMember['id'] == api.info["id"]:
