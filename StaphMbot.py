@@ -197,7 +197,7 @@ def processWarn(db,api,uo,gid,ts,reply):
             else:
                 api.logOut.writeln(str(api.query('restrictChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10),'can_send_messages':False})))
                 api.sendMessage(gid,'該用戶已被永久禁言。',{'reply_to_message_id':reply})
-                if db[1].getItem(str(gid),'notify'):
+                if db[1].getItem(str(gid),'notify') != 'None':
                     api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('silenced','forever',uname,uid))
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被禁言至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
@@ -220,7 +220,7 @@ def processWarn(db,api,uo,gid,ts,reply):
             else:
                 api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(time.time()+10)})))
                 api.sendMessage(gid,'該用戶已被永久封禁。',{'reply_to_message_id':reply})
-                if db[1].getItem(str(gid),'notify'):
+                if db[1].getItem(str(gid),'notify') != 'None':
                     api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked','forever',uname,uid))
         elif int(ts)+int(punish[1]) - time.time() < 60:
             api.sendMessage(gid,'該用戶應當被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 然而由於處理時間已過，故此不作處分。',{'reply_to_message_id':reply})
@@ -232,7 +232,7 @@ def processWarn(db,api,uo,gid,ts,reply):
             else:
                 api.logOut.writeln(str(api.query('kickChatMember',{'chat_id':gid,'user_id':uid,'until_date':int(ts)+int(punish[1])})))
                 api.sendMessage(gid,'該用戶已被封禁至 '+l10n.epochToISO(int(ts)+int(punish[1]))+' 。',{'reply_to_message_id':reply})
-                if db[1].getItem(str(gid),'notify'):
+                if db[1].getItem(str(gid),'notify') != 'None':
                     api.sendMessage(db[1].getItem(str(gid),'notify'),l10n.notifyPunish('kicked',l10n.epochToISO(int(ts)+int(punish[1])),uname,uid))
 
 def processRule(gid,db):
@@ -368,7 +368,10 @@ def processItem(message,db,api):
                 addGroup(message['message']['chat']['id'],db,api.logOut)
                 groupBlacklist = db[0].getItem('blacklist','value').split('|')
                 if str(message['message']['chat']['id']) in groupBlacklist:
-                    api.sendMessage(message['message']['chat']['id'],"This group has been blacklisted!")
+                    try:
+                        api.sendMessage(message['message']['chat']['id'],"This group has been blacklisted!")
+                    except APIError:
+                        api.logOut.writeln("Group blacklisted message failed to be sent")
                     api.query("leaveChat",{"chat_id":message['message']['chat']['id']})
     db[0].addItem(['lasttime',message['message']['date']])
 
