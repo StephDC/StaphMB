@@ -119,7 +119,7 @@ def initiateDB(fName,outdev):
     return (conf,group,warn)
 
 def addGroup(gid,db,outdev):
-    if not db[1].hasItem(gid):
+    if not db[1].hasItem(str(gid)):
         db[1].addItem([str(gid)]+[str(i) for i in db[1].data.execute('select * from "group" where header="default"').fetchone()[1:]])
         outdev.writeln('I\'ve been added to a new group '+str(gid)) #+': '+message['message']['chat']['title']+'.')
     else:
@@ -311,6 +311,7 @@ def processItem(message,db,api):
             elif stripText == '/warncheck':
                 processCheck(message,api,db)
         # Process hashtag
+        # Hashtag shall only be accepted in supergroup issued by admin
         elif message['message']['text'][0] == '#':
             if len(message['message']['text'])>4 and message['message']['text'][1:5].lower() == 'warn':
                 if message['message']['chat']['type']!='supergroup':
@@ -362,6 +363,41 @@ def processItem(message,db,api):
                         #  i,t,u,uid,a,c,m,r
                         if db[1].getItem(str(message['message']['chat']['id']),'notify') != 'None':
                             api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyDelwarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
+            elif len(message['message']['text'])>11 and message['message']['text'][1:12].lower() == 'setwarnrule':
+                if message['message']['chat']['type']!='supergroup':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
+                    if message['message']['from']['id'] not in adminList:
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #SETWARNRULE 修改警告懲罰規則。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        newRule = message['message']['text'].split('\n')[1:]
+                        if not newRule:
+                            api.sendMessage(message['message']['chat']['id'],"規則說明：每行一條，使用下列格式聲明規則\n\n規則類型：\n0: 口頭警告\n1|x: 禁言 x 秒\n2|x: 封禁 x 秒\n3: 永封\n\n警告規則不超過 5 條",{"reply_to_message_id":message['message']['message_id']})
+                        else:
+                            dbRule = []
+                            for i in range(len(newRule)):
+                                tmp = newRule[i].split('|')
+                                if (not tmp[0]) or (tmp[0] not in '0123') or ((tmp[0] in '03') and len(tmp) != 1) or ((tmp[0] in '12') and len(tmp) not in (1,2)):
+                                    api.sendMessage(message['message']['chat']['id'],"規則格式錯誤：請參見 #SETWARNRULE 規則說明。",{"reply_to_message_id":message['message']['message_id']})
+                                    dbRule = None
+                                    break
+                                elif tmp[0] in '12' and len(tmp) == 2:
+                                    try:
+                                        tmp[0] += '|'+str(int(tmp[1]))
+                                    except ValueError:
+                                        api.sendMessage(message['message']['chat']['id'],"規則格式錯誤：請參見 #SETWARNRULE 規則說明。",{"reply_to_message_id":message['message']['message_id']})
+                                        dbRule = None
+                                        break
+                                dbRule.append(tmp[0])
+                            if dbRule:
+                                tmp = [str(message['message']['chat']['id'])]+dbRule
+                                tmp += [dbRule[-1]] * (6-len(tmp))
+                                tmp += [db[1].getItem(str(message['message']['chat']['id']),'fade')]
+                                tmp += [db[1].getItem(str(message['message']['chat']['id']),'notify')]
+                                tmp += [db[1].getItem(str(message['message']['chat']['id']),'msg')]
+                                db[1].addItem(tmp)
+                                api.sendMessage(message['message']['chat']['id'],"警告懲罰規則已修改成功。",{'reply_to_message_id':message['message']['message_id']})
     elif 'new_chat_members' in message['message']:
         for newMember in message['message']['new_chat_members']:
             if newMember['id'] == api.info["id"]:
