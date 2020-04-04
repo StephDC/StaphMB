@@ -339,7 +339,7 @@ def processItem(message,db,api):
                             db[2].addItem(wid+warnInfo)
                             rep = api.sendMessage(message['message']['chat']['id'],l10n.warnSuccess(str(countWarn(db,warnInfo[1],warnInfo[2])),db[1].getItem(str(message['message']['chat']['id']),'msg')),{'reply_to_message_id':message['message']['message_id']})
                             #  i,t,u,uid,a,c,m,r
-                            if db[1].getItem(str(message['message']['chat']['id']),'notify'):
+                            if db[1].getItem(str(message['message']['chat']['id']),'notify') != 'None':
                                 api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyWarn(wid[0],l10n.epochToISO(warnInfo[0]),getNameRep(message['message']['reply_to_message']['from']),str(warnInfo[2]),getNameRep(message['message']['from']),str(countWarn(db,warnInfo[1],warnInfo[2])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,warnInfo[-1]))
                             # api.logOut.writeln('Warned '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                             processWarn(db,api,message['message']['reply_to_message']['from'],warnInfo[1],message['message']['reply_to_message']['date'],rep)
@@ -360,7 +360,7 @@ def processItem(message,db,api):
                         # api.logOut.writeln('Removed warning for '+getNameRep(message['message']['reply_to_message']['from'])+' in group '+message['message']['chat']['id'])
                         api.sendMessage(message['message']['chat']['id'],l10n.delWarnSuccess(l10n.epochToISO(int(warnInfo[0])),getName(warnInfo[1],message['message']['chat']['id'],api,adminList),warnInfo[2],str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id']))),{'reply_to_message_id':message['message']['message_id']})
                         #  i,t,u,uid,a,c,m,r
-                        if db[1].getItem(str(message['message']['chat']['id']),'notify'):
+                        if db[1].getItem(str(message['message']['chat']['id']),'notify') != 'None':
                             api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyDelwarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
     elif 'new_chat_members' in message['message']:
         for newMember in message['message']['new_chat_members']:
