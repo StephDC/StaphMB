@@ -97,6 +97,7 @@ class l10n:
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
     notifyWarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '<Multimedia Message>')
     notifyDelwarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '<Multimedia Message>')
+    notifyG11 = lambda t,u,uid,a,m: "Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+(m if m else '<Multimedia Message>')
     notifyPunish = lambda p,t,u,uid: "User "+u+" ("+uid+") has been "+p+" till "+t+"."
     notifyPunishFail = lambda p,t,u,uid: "User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
 
@@ -167,11 +168,12 @@ def getAdminList(adminList):
             result[item['user']['id']] = getNameRep(item['user'])
     return result
 
-def processWarn(db,api,uo,gid,ts,reply):
-    ## Verify at least I can do something...
+def canPunish(api,gid):
     tmp = api.query('getChatMember',{'chat_id':gid,'user_id':api.info['id']})
-    cannotPunish = not(tmp['status'] == 'creator' or ('can_restrict_members' in tmp and tmp['can_restrict_members']))
-    ##
+    return tmp['status'] == 'creator' or ('can_restrict_members' in tmp and tmp['can_restrict_members'])
+
+def processWarn(db,api,uo,gid,ts,reply):
+    cannotPunish = not canPunish(api,gid)
     uid = str(uo['id'])
     uname = getNameRep(uo)
     api.logOut.writeln('Processing actual punishment...')
@@ -290,8 +292,12 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-message['message']['date'])+' seconds!',{'reply_to_message_id':message['message']['message_id']})
             if stripText == '/anyone':
                 api.sendMessage(message['message']['chat']['id'],'沒有人，你悲劇了。',{'reply_to_message_id':message['message']['reply_to_message']['message_id'] if 'reply_to_message' in message['message'] else message['message']['message_id']})
+            ## EASTER EGGS
             elif stripText == '/stupid_bluedeck':
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/wpwpw':
+                api.sendMessage(message['message']['chat']['id'],'白磷白磷白',{'reply_to_message_id':message['message']['message_id']})
+            ##
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == "/userid":
@@ -363,6 +369,33 @@ def processItem(message,db,api):
                         #  i,t,u,uid,a,c,m,r
                         if db[1].getItem(str(message['message']['chat']['id']),'notify') != 'None':
                             api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),l10n.notifyDelwarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip()))
+            elif len(message['message']['text'])>3 and message['message']['text'][1:4].lower() == 'g11':
+                if message['message']['chat']['type']!='supergroup':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
+                elif db[1].getItem(str(message['message']['chat']['id']),'notify') == 'None':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，該功能僅在已配置群組日誌的群可用。您可以直接使用濫權三連（刪除消息，封禁用戶，舉報用戶）處理 #G11。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    adminList = getAdminList(api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']}))
+                    if message['message']['from']['id'] not in adminList:
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #G11 快速踢出其他用戶。',{'reply_to_message_id':message['message']['message_id']})
+                    elif 'reply_to_message' not in message['message']:
+                        api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被處理的訊息。',{'reply_to_message_id':message['message']['message_id']})
+                    elif message['message']['reply_to_message']['from']['id'] in adminList:
+                        api.sendMessage(message['message']['chat']['id'],'竟敢試圖說管理員有 #G11 ，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
+                    elif message['message']['reply_to_message']['from']['id'] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
+                        api.sendMessage(message['message']['chat']['id'],'竟敢試圖 #G11 機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
+                    elif not canPunish(api,message['message']['chat']['id']):
+                        api.sendMessage(message['message']['chat']['id'],'雖然很想處理掉這個 #G11 ，然而本機器人流下了沒有權利的淚水。您可以直接使用濫權三連（刪除消息，封禁用戶，舉報用戶）處理 #G11。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        ## Process G11
+                        api.query('kickChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['reply_to_message']['from']['id']})
+                        api.sendMessage(db[1].getItem(str(message['message']['chat']['id'],'notify')),l10n.notifyG11(str(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None))
+                        try:
+                            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['reply_to_message']['message_id']})
+                        except APIError:
+                            api.sendMessage(message['message']['chat']['id'],'機器人似乎在試圖刪除該消息時遇到了一些困難。',{'reply_to_message_id':message['message']['message_id']})
+                        else:
+                            api.sendMessage(message['message']['chat']['id'],'機器人成功處理掉了一個 #G11 ！',{'reply_to_message_id':message['message']['message_id']})
             elif len(message['message']['text'])>11 and message['message']['text'][1:12].lower() == 'setwarnrule':
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
