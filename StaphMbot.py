@@ -97,7 +97,7 @@ class l10n:
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
     notifyWarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '<Multimedia Message>')
     notifyDelwarn = lambda i,t,u,uid,a,c,m,r: "ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '<Multimedia Message>')
-    notifyG11 = lambda t,u,uid,a,m: "Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+(m if m else '<Multimedia Message>')
+    notifyG11 = lambda t,u,uid,a,m: "Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+getMsgText(m)
     notifyPunish = lambda p,t,u,uid: "User "+u+" ("+uid+") has been "+p+" till "+t+"."
     notifyPunishFail = lambda p,t,u,uid: "User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
 
@@ -159,7 +159,7 @@ def getNameRep(userObj):
         return '@'+userObj['first_name']
 
 def getMsgText(msgObj):
-    return '['+getNameRep(msgObj['from'])[1:]+'] '+msgObj['text'] if 'text' in msgObj else '['+getNameRep(msgObj['from'])[1:]+'] <Multimedia Message>'
+    return msgObj['text'] if 'text' in msgObj else '<Multimedia Message>'
 
 def getAdminList(adminList):
     result = {}
@@ -389,7 +389,9 @@ def processItem(message,db,api):
                     else:
                         ## Process G11
                         api.query('kickChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['reply_to_message']['from']['id']})
-                        api.sendMessage(db[1].getItem(str(message['message']['chat']['id'],'notify')),l10n.notifyG11(str(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None))
+#                        api.sendMessage(db[1].getItem(str(message['message']['chat']['id'],'notify')),l10n.notifyG11(str(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),message['message']['reply_to_message']))
+                        api.sendMessage(db[1].getItem(str(message['message']['chat']['id']),'notify'),getNameRep(message['message']['from'])+" has killed a #G11 from "+getNameRep(message['message']['reply_to_message']['from'])+"("+ str(message['message']['reply_to_message']['from']['id'])+") with content of\n"+getMsgText(message['message']['reply_to_message']))
+                        print(str(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),message['message']['reply_to_message'])
                         try:
                             api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['reply_to_message']['message_id']})
                         except APIError:
