@@ -403,7 +403,7 @@ def processItem(message,db,api):
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
                     reqUser = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
-                    if (reqUser['status'] != 'creator') and (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
+                    if (reqUser['status'] != 'creator') and not (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #SETWARNRULE 修改警告懲罰規則。',{'reply_to_message_id':message['message']['message_id']})
                     else:
                         newRule = message['message']['text'].split('\n')[1:]
@@ -438,7 +438,7 @@ def processItem(message,db,api):
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
                     reqUser = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
-                    if (reqUser['status'] != 'creator') and (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
+                    if (reqUser['status'] != 'creator') and not (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #SETWARNFADE 修改警告懲罰規則。',{'reply_to_message_id':message['message']['message_id']})
                     else:
                         newRule = message['message']['text'].split(' ')[1:]
