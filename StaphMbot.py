@@ -80,7 +80,15 @@ class tgapi:
     def sendMessage(self,target,text,misc={}):
         misc['text'] = text
         misc['chat_id'] = target
-        data = self.query('sendMessage',misc)
+        try:
+            data = self.query('sendMessage',misc,retry=0)
+        except APIError:
+            tmp = self.query("getChatMember",{"chat_id":target,"user_id":self.info['id']})
+            if 'can_send_messages' in tmp and tmp['can_send_messages'] == False:
+                self.query("leaveChat",{"chat_id":target})
+                self.logOut.writeln("Leaving group "+target+" because I am restricted from send messages.")
+        else:
+            data = self.query('sendMessage',misc,retry=self.retry-1)
         if data and data['text'] == text:
             return data['message_id']
         else:
