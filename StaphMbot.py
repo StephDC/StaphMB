@@ -293,9 +293,10 @@ def processItem(message,db,api):
     if 'text' in message['message'] and message['message']['text']:
         # Process bot command
         if message['message']['text'][0] == '/':
-            stripText = message['message']['text']
+            stripText = message['message']['text'].split(' ',1)[0]
             if '@'+api.info['username'] in stripText:
                 stripText=stripText[:-len(api.info['username'])-1]
+            stripText = stripText.lower()
             if stripText == '/ping':
                 api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-message['message']['date'])+' seconds!',{'reply_to_message_id':message['message']['message_id']})
             if stripText == '/anyone':
@@ -305,6 +306,26 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/wpwpw':
                 api.sendMessage(message['message']['chat']['id'],'白磷白磷白',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/taf':
+                tafQuery = message['message']['text'].split(' ',1)
+                if len(tafQuery) == 2 and len(tafQuery[1]) == 4:
+                    try:
+                        tafData = ur.urlopen('http://localhost/cgi-bin/taf.cgi?airport='+tafQuery[1]).read().decode('UTF-8').strip()
+                    except ue.HTTPError:
+                        tafData = 'Airport TAF lookup failed. Maybe wrong airport code?'
+                else:
+                    tafData = 'Usage: /taf <ICAO code>'
+                api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/metar':
+                tafQuery = message['message']['text'].split(' ',1)
+                if len(tafQuery) == 2 and len(tafQuery[1]) == 4:
+                    try:
+                        tafData = ur.urlopen('http://localhost/cgi-bin/taf.cgi?type=metar&airport='+tafQuery[1]).read().decode('UTF-8').strip()
+                    except ue.HTTPError:
+                        tafData = 'Airport METAR lookup failed. Maybe wrong airport code?'
+                else:
+                    tafData = 'Usage: /metar <ICAO code>'
+                api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
             ##
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
