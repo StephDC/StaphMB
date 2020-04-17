@@ -21,6 +21,15 @@ def update1(db):
     db[0].addItem(['dbver','1.2'])
     print('DB version updated to 1.2')
 
+def update2(db):
+    if db[0].getItem('dbver','value') != '1.2':
+        raise TypeError("Wrong Database Version")
+    db[0].data.execute("create table admin (header text, time text, last text)")
+    db[0].data.execute("insert into admin values ('header','time','last')")
+    db[0].updateDB()
+    db[0].addItem(['dbver','1.3'])
+    print('DB version updated to 1.3')
+
 def main(args):
     tmp = sqldb.sqliteDB(args[0],'config')
     db = (tmp,sqldb.sqliteDB(tmp,'group'),sqldb.sqliteDB(tmp,'warn'))
@@ -28,6 +37,8 @@ def main(args):
         update0(db)
     if db[0].getItem('dbver','value') == '1.1':
         update1(db)
+    if db[0].getItem('dbver','value') == '1.2':
+        update2(db)
     print("Your database is up-to-date.")
 
 if __name__ == '__main__':

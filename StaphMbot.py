@@ -114,7 +114,7 @@ def initiateDB(fName,outdev):
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.2':
+    if conf.getItem('dbver','value') != '1.3':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -124,8 +124,12 @@ def initiateDB(fName,outdev):
         warn = sqldb.sqliteDB(conf.db,'warn')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted warn table')
+    try:
+        admin = sqldb.sqliteDB(conf.db,'admin')
+    except sqldb.sqliteDBError:
+        raise APIError('DB','Corrupted admin table')
     outdev.writeln('DB File '+fName+' loaded.')
-    return (conf,group,warn)
+    return (conf,group,warn,admin)
 
 def addGroup(gid,db,outdev):
     if not db[1].hasItem(str(gid)):
@@ -336,6 +340,33 @@ def processItem(message,db,api):
             elif stripText == '/uptime':
                 import subprocess
                 api.sendMessage(message['message']['chat']['id'],'Uptime: '+subprocess.check_output('uptime').decode().strip(),{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/online':
+                if 'username' not in message['message']['from']:
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。',{'reply_to_message_id':message['message']['message_id']})
+                elif db[3].hasItem(str(message['message']['from']['id'])):
+                    api.sendMessage(message['message']['chat']['id'],'您已在線上管理員列表中。請使用 /offline 將您從該列表移除。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),str(int(time.time()))])
+                    api.sendMessage(message['message']['chat']['id'],'您已成功加入線上管理員列表。請使用 /offline 將您從該列表移除。',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/offline':
+                if db[3].hasItem(str(message['message']['from']['id'])):
+                    db[3].remItem(str(message['message']['from']['id']))
+                    api.sendMessage(message['message']['chat']['id'],'您已成功自線上管理員列表中移除。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    api.sendMessage(message['message']['chat']['id'],'您不在線上管理員列表中。請使用 /online 將您加入該列表。',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == "/admin":
+                if message['message']['chat']['type'] not in ('supergroup','group'):
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，您僅可在群組或超級群組中呼叫管理員。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    adminList = api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})
+                    result = []
+                    for item in adminList:
+                        if ('username' in item['user']) and db[3].hasItem(item['user']['id']):
+                            result.append('@'+item['user']['username'])
+                    if result:
+                        api.sendMessage(message['message']['chat']['id'],', '.join(result)+'，有人找管理啦。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，本群暫無在線上的管理員可供呼叫。',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == "/warn":
                 api.sendMessage(message['message']['chat']['id'],'本機器人可以用於警告用戶，請使用 #warn 附帶理由以作出警告。',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
