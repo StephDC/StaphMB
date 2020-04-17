@@ -346,7 +346,11 @@ def processItem(message,db,api):
                 elif db[3].hasItem(str(message['message']['from']['id'])):
                     api.sendMessage(message['message']['chat']['id'],'您已在線上管理員列表中。請使用 /offline 將您從該列表移除。',{'reply_to_message_id':message['message']['message_id']})
                 else:
-                    db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),str(int(time.time()))])
+                    tmp = message['message']['text'].split(' ',1)
+                    if len(tmp) == 2 and tmp[1].strip().lower() == 'no pm':
+                        db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),'nopm'])
+                    else:
+                        db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),str(int(time.time()))])
                     api.sendMessage(message['message']['chat']['id'],'您已成功加入線上管理員列表。請使用 /offline 將您從該列表移除。',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/offline':
                 if db[3].hasItem(str(message['message']['from']['id'])):
@@ -361,8 +365,11 @@ def processItem(message,db,api):
                     adminList = api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})
                     result = []
                     for item in adminList:
-                        if ('username' in item['user']) and db[3].hasItem(item['user']['id']):
-                            result.append('@'+item['user']['username'])
+                        if ('username' in item['user']) and db[3].hasItem(str(item['user']['id'])):
+                            if db[3].getItem(str(item['user']['id']),'last') == 'nopm':
+                                result.append(item['user']['username'])
+                            else:
+                                result.append('@'+item['user']['username'])
                     if result:
                         api.sendMessage(message['message']['chat']['id'],', '.join(result)+'，有人找管理啦。',{'reply_to_message_id':message['message']['message_id']})
                     else:
