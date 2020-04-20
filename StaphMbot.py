@@ -1,14 +1,16 @@
 #! /usr/bin/env python3
 
+import datetime
+import json
+import os
 import sqldb
+import subprocess
+import sys
+import threading
+import time
 import urllib.error as ue
 import urllib.request as ur
 import urllib.parse as up
-import json
-import datetime
-import time
-import sys
-import os
 
 __version__ = '0.1'
 __doc__ = '''StaphMB - A Telegram Group Management Bot infected by _S. aureus_
@@ -42,12 +44,14 @@ class tgapi:
         self.logOut = stdOut() if logger is None else logger
         self.target = 'https://api.telegram.org/bot'+apikey+'/'
         self.retry = maxRetry
+        self.qthread = []
         self.info = self.query('getMe')
         if self.info is None:
             raise APIError('API', 'Initialization Self-test Failed')
         self.logOut.writeln("Bot "+self.info["username"]+" connected to the Telegram API.")
 
     def query(self,met,parameter=None,retry=None):
+        'Query Telegram Bot API'
         req = ur.Request(self.target+met,method='POST')
         req.add_header('User-Agent','StaphMbot/0.1 (+https://github.com/StephDC/StaphMbot)')
         if parameter is not None:
@@ -93,6 +97,37 @@ class tgapi:
             return data['message_id']
         else:
             return False
+
+    def sendAction(self,target,duration,action):
+        if action not in ('typing','upload_photo','record_video','upload_video','record_audio','upload_audio','upload_document','find_location','record_video_note','upload_video_note'):
+            raise APIError('API','Illegal action '+action)
+        self.query('sendChatAction',{'chat_id':target,'action':action})
+        time.sleep(target % 5)
+        target -= target % 5
+        while target:
+            self.query('sendChatAction',{'chat_id':target,'action':action})
+            time.sleep(5)
+            target -= 5
+
+    def dQuery(self,delay,query,param=None,retry=None):
+        'blocking sleep - query'
+        time.sleep(delay)
+        return self.query(query,param,retry)
+
+    def delayQuery(self,delay,query,param=None,retry=None):
+        th = threading.Thread(target=self.dQuery,args=(delay,query,param,retry))
+        th.start()
+        self.qthread.append(th)
+
+    def clearDelayQuery(self):
+        result = 0
+        for item in self.qthread:
+            if item.is_alive():
+                result += 1
+            else:
+                item.join()
+                self.qthread.remove(item)
+        return result
 
 # A few output formatting functions
 class l10n:
@@ -338,26 +373,38 @@ def processItem(message,db,api):
             elif stripText == '/lastid':
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
-                import subprocess
-                api.sendMessage(message['message']['chat']['id'],'Uptime: '+subprocess.check_output('uptime').decode().strip(),{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'Uptime:\n<pre>'+subprocess.check_output('uptime').decode().strip()+'</pre>\nThread: '+str(api.clearDelayQuery()),{'parse_mode':'HTML','reply_to_message_id':message['message']['message_id']})
             elif stripText == '/online':
                 if 'username' not in message['message']['from']:
-                    api.sendMessage(message['message']['chat']['id'],'抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。',{'reply_to_message_id':message['message']['message_id']})
+                    tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。')
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 elif db[3].hasItem(str(message['message']['from']['id'])):
-                    api.sendMessage(message['message']['chat']['id'],'您已在線上管理員列表中。請使用 /offline 將您從該列表移除。',{'reply_to_message_id':message['message']['message_id']})
+                    tmp=api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已在線上管理員列表中。請使用 /offline 將您從該列表移除。')
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 else:
                     tmp = message['message']['text'].split(' ',1)
                     if len(tmp) == 2 and tmp[1].strip().lower() == 'no pm':
                         db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),'nopm'])
                     else:
                         db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),str(int(time.time()))])
-                    api.sendMessage(message['message']['chat']['id'],'您已成功加入線上管理員列表。請使用 /offline 將您從該列表移除。',{'reply_to_message_id':message['message']['message_id']})
+                    tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已成功加入線上管理員列表。請使用 /offline 將您從該列表移除。')
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                try:
+                    api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+                except APIError:
+                    print('Message https://t.me/'+str(message['message']['chat']['id'])+'/'+str(message['message']['message_id'])+' failed to be removed.')
             elif stripText == '/offline':
                 if db[3].hasItem(str(message['message']['from']['id'])):
                     db[3].remItem(str(message['message']['from']['id']))
-                    api.sendMessage(message['message']['chat']['id'],'您已成功自線上管理員列表中移除。',{'reply_to_message_id':message['message']['message_id']})
+                    tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已成功自線上管理員列表中移除。')
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 else:
-                    api.sendMessage(message['message']['chat']['id'],'您不在線上管理員列表中。請使用 /online 將您加入該列表。',{'reply_to_message_id':message['message']['message_id']})
+                    tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您不在線上管理員列表中。請使用 /online 將您加入該列表。')
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                try:
+                    api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+                except APIError:
+                    print('Message https://t.me/'+str(message['message']['chat']['id'])+'/'+str(message['message']['message_id'])+' failed to be removed.')
             elif stripText == "/admin":
                 if message['message']['chat']['type'] not in ('supergroup','group'):
                     api.sendMessage(message['message']['chat']['id'],'抱歉，您僅可在群組或超級群組中呼叫管理員。',{'reply_to_message_id':message['message']['message_id']})
@@ -559,6 +606,7 @@ def run(db,api):
         data = api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
         for item in data:
             processItem(item,db,api)
+        api.clearDelayQuery()
 
 def main(args):
     outdev = stdOut(args[2]) if len(args)==3 else stdOut()

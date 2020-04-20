@@ -9,4 +9,4 @@ PRs are very welcomed.
 
 Don't want to code? Open an issue then.
 
-We can also be reached at TG @wikipedia\_zh\_politics
+We can also be reached at TG @wikipedia\_zh
