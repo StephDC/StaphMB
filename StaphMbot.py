@@ -462,6 +462,7 @@ def processItem(message,db,api):
                 else:
                     tafData = 'Usage: <pre>/metar &lt;ICAO code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
+<<<<<<< HEAD
             elif stripText in ('/iataicao','/icaoiata'):
                 tafQuery = message['message']['text'].split(' ',1)
                 if len(tafQuery) == 2 and len(tafQuery[1]) in (3,4):
