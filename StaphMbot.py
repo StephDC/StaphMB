@@ -114,13 +114,14 @@ class tgapi:
         time.sleep(delay)
         return self.query(query,param,retry)
 
-    def dBQuery(self,delay,batchQuery):
+    def dBQuery(self,delay,batchQuery,afDelay):
         'Execute a batch of queries after a delay - blocking'
         time.sleep(delay)
         for item in batchQuery:
             self.query(item[0],item[1] if len(item) > 1 else None,item[2] if len(item) > 2 else None)
+            time.sleep(afDelay)
 
-    def delayBatchQuery(self,delay,batchQuery):
+    def delayBatchQuery(self,delay,batchQuery,afDelay=0.5):
         th = threading.Thread(target=self.dBQuery,args=(delay,batchQuery))
         th.start()
         self.qthread.append(th)
