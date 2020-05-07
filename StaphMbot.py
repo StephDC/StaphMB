@@ -361,11 +361,11 @@ def processItem(message,db,api):
             elif stripText == '/wpwpw':
                 api.sendMessage(message['message']['chat']['id'],'白磷白磷白',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/gay':
-                gay = 50
-                for i in range(10):
+                gay = 0
+                for i in range(20):
                     tmp = os.urandom(1)[0]
                     for j in range(5):
-                        gay += (tmp & 1 << 1) - 1
+                        gay += tmp & 1 
                         tmp >>= 1
                 api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' is '+str(gay)+'% gay!',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/taf':
