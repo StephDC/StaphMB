@@ -481,7 +481,7 @@ def processCheck(msg,api,db):
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
 
 def updateDiscussMessage(api,chat_id):
-    newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':'申請：'+api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]+[[{'text':'除權：'+api.info['metaDiscussion']['tmpuser'][i],'callback_data':i}] for i in api.info['metaDiscussion']['tmpuser']]
+    newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':'申請：'+api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]+[[{'text':'除權：'+api.info['metaDiscussion']['queue'][i],'callback_data':-i}] for i in api.info['metaDiscussion']['tmpuser']]
     api.query('editMessageText',{'chat_id':chat_id,'message_id':api.info['metaDiscussion']['mid'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無')+'\n已允許發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['tmpuser'][i] for i in api.info['metaDiscussion']['tmpuser']]) if api.info['metaDiscussion']['tmpuser'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList}})
 
 def processCallback(api,query):
