@@ -360,6 +360,14 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/wpwpw':
                 api.sendMessage(message['message']['chat']['id'],'白磷白磷白',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/gay':
+                gay = 50
+                for i in range(10):
+                    tmp = os.urandom(1)[0]
+                    for j in range(5):
+                        gay += (tmp & 1 << 1) - 1
+                        tmp >>= 1
+                api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' is '+str(gay)+'% gay!',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/taf':
                 tafQuery = message['message']['text'].split(' ',1)
                 if len(tafQuery) == 2 and len(tafQuery[1]) == 4:
