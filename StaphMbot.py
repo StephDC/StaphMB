@@ -45,6 +45,7 @@ class tgapi:
         self.target = 'https://api.telegram.org/bot'+apikey+'/'
         self.retry = maxRetry
         self.qthread = []
+        self.msgAF = {}
         self.info = self.query('getMe')
         if self.info is None:
             raise APIError('API', 'Initialization Self-test Failed')
@@ -82,6 +83,10 @@ class tgapi:
         return data['result'] if data['ok'] else None
     
     def sendMessage(self,target,text,misc={}):
+        if int(target) in self.msgAF:
+            delay = self.msgAF[int(target)] + 3 - time.time()
+            if delay > 0.5:
+                time.sleep(delay)
         misc['text'] = text
         misc['chat_id'] = target
         try:
@@ -93,6 +98,7 @@ class tgapi:
                 self.logOut.writeln("Leaving group "+str(target)+" because I am restricted from send messages.")
             else:
                 data = self.query('sendMessage',misc,retry=self.retry-1)
+        self.msgAF[int(target)] = time.time()
         if data and data['text'] == text:
             return data['message_id']
         else:
