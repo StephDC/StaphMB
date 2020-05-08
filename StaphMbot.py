@@ -368,11 +368,12 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'白磷白磷白',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/gay':
                 gay = 0
-                for i in range(20):
+                for i in range(5):
                     tmp = os.urandom(1)[0]
                     for j in range(5):
                         gay += tmp & 1 
                         tmp >>= 1
+                gay = gay * 4 + (os.urandom(1)[0] & 3)
                 api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' is '+str(gay)+'% gay!',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/taf':
                 tafQuery = message['message']['text'].split(' ',1)
