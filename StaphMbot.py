@@ -6,6 +6,7 @@ import os
 import sqldb
 import subprocess
 import sys
+import tgGroupConf
 import threading
 import time
 import urllib.error as ue
@@ -97,6 +98,8 @@ class tgapi:
                 self.query("leaveChat",{"chat_id":target})
                 self.logOut.writeln("Leaving group "+str(target)+" because I am restricted from send messages.")
             else:
+                if 'reply_to_message_id' in misc:
+                    misc.pop('reply_to_message_id')
                 data = self.query('sendMessage',misc,retry=self.retry-1)
         self.msgAF[int(target)] = time.time()
         if data and data['text'] == text:
@@ -236,6 +239,99 @@ def getAdminList(adminList):
             result[item['user']['id']] = getNameRep(item['user'])
     return result
 
+def metaAdminList(api,origMsg,groupID,afDelay=0.5):
+    adminList = {}
+    checkPrompt = api.sendMessage(origMsg['chat']['id'],'正在查詢管理員資訊，請稍候。預計需時 '+str(len(groupID)*afDelay)+' 秒。',{'reply_to_message_id':origMsg['message_id']})
+    actionNow = time.time()
+    api.query('sendChatAction',{'chat_id':origMsg['chat']['id'],'action':'typing'})
+    for item in groupID:
+        try:
+            if time.time() - actionNow > 4.5:
+                api.query('sendChatAction',{'chat_id':origMsg['chat']['id'],'action':'typing'})
+            tmp = api.query('getChatAdministrators',{'chat_id':item})
+        except APIError:
+            print('Failed to get Admin list from group '+groupID[item]+'('+str(item)+').')
+        else:
+            for datum in tmp:
+                if datum['status'] in ('creator','administrator'):
+                    if datum['user']['id'] not in adminList:
+                        adminList[datum['user']['id']] = ''
+                    adminList[datum['user']['id']] += groupID[item]
+        time.sleep(afDelay)
+    adminList['time'] = int(time.time())
+    api.info['metaAdminList'] = adminList
+    api.query('deleteMessage',{'chat_id':origMsg['chat']['id'],'message_id':checkPrompt})
+    checkPrompt = api.sendMessage(origMsg['chat']['id'],'管理員列表已完成更新。',{'reply_to_message_id':origMsg['message_id']})
+    time.sleep(10)
+    api.query('deleteMessage',{'chat_id':origMsg['chat']['id'],'message_id':checkPrompt})
+    api.query('deleteMessage',{'chat_id':origMsg['chat']['id'],'message_id':origMsg['message_id']})
+
+def checkAdmin(api,uid,origMsg,groupID,afDelay=0.5):
+    if 'metaAdminList' in api.info and uid in api.info['metaAdminList']:
+        return api.info['metaAdminList'][uid]
+    checkPrompt = api.sendMessage(origMsg['chat']['id'],'正在查詢管理員資訊，請稍候。預計需時 '+str(len(groupID)*afDelay)+' 秒。',{'reply_to_message_id':origMsg['message_id']})
+    result = ''
+    actionNow = time.time()
+    api.query('sendChatAction',{'chat_id':origMsg['chat']['id'],'action':'typing'})
+    for item in groupID:
+        try:
+            if time.time() - actionNow > 4.5:
+                api.query('sendChatAction',{'chat_id':origMsg['chat']['id'],'action':'typing'})
+            tmp = api.query('getChatMember',{'chat_id':item,'user_id':uid})
+        except APIError:
+            pass
+        else:
+            if tmp['status'] in ('administrator','creator'):
+                result += groupID[item]
+        time.sleep(afDelay)
+    api.query('deleteMessage',{'chat_id':origMsg['chat']['id'],'message_id':checkPrompt})
+    return result
+
+def checkAdminGroup(api,uid,origMsg,groupID):
+    result = checkAdmin(api,uid,origMsg,groupID)
+    api.sendMessage(origMsg['chat']['id'],result if result else '該用戶並非任何群組的管理員',{'reply_to_message_id':origMsg['message_id']})
+
+def metaSu(api,cTitle,origMsg,groupID):
+    yourPerm = api.query("getChatMember",{'chat_id':origMsg['chat']['id'],'user_id':origMsg['from']['id']})
+    if yourPerm['status'] in ('creator','administrator'):
+        api.sendMessage(origMsg['chat']['id'],'我無法讓您成為管理員',{'reply_to_message_id':origMsg['message_id']})
+        return
+    myPerm = api.query("getChatMember",{'chat_id':origMsg['chat']['id'],'user_id':api.info['id']})
+    if myPerm['status'] not in ('creator','administrator') or (myPerm['status']=='administrator' and not myPerm['can_promote_members']):
+        api.sendMessage(origMsg['chat']['id'],'我無法於此處讓您成為管理員',{'reply_to_message_id':origMsg['message_id']})
+        return
+    newPerm = {
+                'chat_id':origMsg['chat']['id'],
+                'user_id':origMsg['from']['id'],
+                'can_restrict_members': myPerm['can_restrict_members'] if myPerm['status'] == 'administrator' else True,
+                'can_delete_messages': myPerm['can_delete_messages'] if myPerm['status'] == 'administrator' else True,
+                'can_invite_users': myPerm['can_invite_users'] if myPerm['status'] == 'administrator' else True,
+                'can_pin_messages': myPerm['can_pin_messages'] if myPerm['status'] == 'administrator' else True,
+                'can_promote_members': False if myPerm['status'] == 'administrator' else True
+    }
+    result = checkAdmin(api,origMsg['from']['id'],origMsg,groupID)
+    if not result:
+        api.sendMessage(origMsg['chat']['id'],'您並非任何群組的管理員',{'reply_to_message_id':origMsg['message_id']})
+    else:
+        newTitle = ''
+        for item in cTitle:
+            if item in result:
+                newTitle += item
+        if not newTitle:
+            newTitle = result
+        if len(newTitle) > 3:
+            newTitle = newTitle[:3]+'+'
+        try:
+            api.query('promoteChatMember',newPerm)
+            time.sleep(0.5)
+            api.query('setChatAdministratorCustomTitle',{'chat_id':newPerm['chat_id'],'user_id':newPerm['user_id'],'custom_title':newTitle})
+            checkPrompt = api.sendMessage(origMsg['chat']['id'],'您已成為管理員，請按 /exit 退出。',{'reply_to_message_id':origMsg['message_id']})
+            time.sleep(10)
+            api.query('deleteMessage',{'chat_id':origMsg['chat']['id'],'message_id':checkPrompt})
+            api.query('deleteMessage',{'chat_id':origMsg['chat']['id'],'message_id':origMsg['message_id']})
+        except APIError:
+            api.sendMessage(origMsg['chat']['id'],'抱歉，由於技術故障，未能完成授權。',{'reply_to_message_id':origMsg['message_id']})
+
 def canPunish(api,gid):
     tmp = api.query('getChatMember',{'chat_id':gid,'user_id':api.info['id']})
     return tmp['status'] == 'creator' or ('can_restrict_members' in tmp and tmp['can_restrict_members'])
@@ -344,12 +440,89 @@ def processCheck(msg,api,db):
         data = db[2].data
         api.sendMessage(message['message']['chat']['id'],'Checking your warnings... Not Implemented.',{'reply_to_message_id':message['message']['message_id']})
 
+def processCallback(api,query):
+    if 'data' not in query or 'message' not in query or 'message_id' not in query['message'] or 'metaDiscussion' not in api.info or query['message']['message_id'] != api.info['metaDiscussion']['mid']:
+        api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'Unknown query'},retry=0)
+        return
+    if query['data'] == 'speak':
+        qu = api.query('getChatMember',{'chat_id':query['message']['chat']['id'],'user_id':query['from']['id']},retry=0)
+        if 'metaAdminList' in api.info and query['from']['id'] in api.info['metaAdminList']:
+            if qu['status'] in ('creator','administrator'):
+                api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已經是管理員了。'},retry=0)
+            else:
+                myPerm = api.query("getChatMember",{'chat_id':query['message']['chat']['id'],'user_id':api.info['id']})
+                if myPerm['status'] not in ('creator','administrator') or (myPerm['status']=='administrator' and not myPerm['can_promote_members']):
+                    api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'我無法於此處讓您成為管理員。'},retry=0)
+                    return
+                newPerm = {
+                    'chat_id':query['message']['chat']['id'],
+                    'user_id':query['from']['id'],
+                    'can_restrict_members': myPerm['can_restrict_members'] if myPerm['status'] == 'administrator' else True,
+                    'can_delete_messages': myPerm['can_delete_messages'] if myPerm['status'] == 'administrator' else True,
+                    'can_invite_users': myPerm['can_invite_users'] if myPerm['status'] == 'administrator' else True,
+                    'can_pin_messages': myPerm['can_pin_messages'] if myPerm['status'] == 'administrator' else True,
+                    'can_promote_members': False if myPerm['status'] == 'administrator' else True
+                }
+                try:
+                    api.query('promoteChatMember',newPerm,retry=0)
+                    api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您成為管理員了。'},retry=0)
+                    api.delayQuery(1,'setChatAdministratorCustomTitle',{'chat_id':newPerm['chat_id'],'user_id':newPerm['user_id'],'custom_title':'臨—'+api.info['metaAdminList'][query['from']['id']][:3]})
+                    api.info['metaDiscussion']['tmpuser'][query['from']['id']] = getNameRep(query['from'])
+                except APIError:
+                    api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'我無法於此處讓您成為管理員。'},retry=0)
+        else:
+            if query['from']['id'] in api.info['metaDiscussion']['queue']:
+                api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已經在申請發言列表中了。'},retry=0)
+                return
+            elif qu['status'] in ('creator','administrator'):
+                api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已經是管理員了。'},retry=0)
+            else:
+                api.info['metaDiscussion']['queue'][query['from']['id']] = getNameRep(query['from'])
+                api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已加入申請發言列表。'},retry=0)
+                newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]
+                api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':'希望發言的用戶列表：\n'+'\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]),'reply_markup':{'inline_keyboard':newButtonList}})
+    elif int(query['data']) in api.info['metaDiscussion']['queue']:
+        if query['from']['id'] == int(query['data']):
+            api.info['metaDiscussion']['queue'].pop(query['from']['id'])
+            newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]
+            api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList}})
+            api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已從申請發言列表中移除。'},retry=0)
+        else:
+            qu = api.query('getChatMember',{'chat_id':query['message']['chat']['id'],'user_id':query['from']['id']},retry=0)
+            if qu['status'] == 'creator' or (qu['status'] == 'administrator' and 'can_promote_members' in qu and qu['can_promote_members']):
+                newPerm = {
+                    'chat_id':query['message']['chat']['id'],
+                    'user_id':int(query['data']),
+                    'can_restrict_members': False,
+                    'can_delete_messages': False,
+                    'can_invite_users': False,
+                    'can_pin_messages': True,
+                    'can_promote_members': False
+                }
+                try:
+                    api.query('promoteChatMember',newPerm,retry=0)
+                    api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您允許了 '+api.info['metaDiscussion']['queue'][int(query['data'])]+' 發言。'},retry=0)
+                    api.delayQuery(1,'setChatAdministratorCustomTitle',{'chat_id':newPerm['chat_id'],'user_id':newPerm['user_id'],'custom_title':'臨時'})
+                    api.info['metaDiscussion']['tmpuser'][int(query['data'])] = api.info['metaDiscussion']['queue'].pop(int(query['data']))
+                    newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]
+                    api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList}})
+                except APIError:
+                    api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'機器人允許 '+api.info['metaDiscussion']['tmpuser'][int(query['data'])]+' 發言失敗了。'},retry=0)
+            else:
+                api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您無權允許其他用戶發言。'},retry=0)
+    else:
+        api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'Unknown query'},retry=0)
+
 def processItem(message,db,api):
     #print(message)
     db[0].addItem(['lastid',message['update_id']])
     api.logOut.writeln(str(message['update_id'])+' being processed...')
+    if 'callback_query' in message:
+        processCallback(api,message['callback_query'])
     if 'message' not in message:
         return
+    if 'dice' in message['message'] and 'killDice' in api.info and message['message']['chat']['id'] in api.info['killDice']:
+        api.delayQuery(api.info['killDice'][message['message']['chat']['id']],'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
     if 'text' in message['message'] and message['message']['text']:
         # Process bot command
         if message['message']['text'][0] == '/':
@@ -361,6 +534,11 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-message['message']['date'])+' seconds!',{'reply_to_message_id':message['message']['message_id']})
             if stripText == '/anyone':
                 api.sendMessage(message['message']['chat']['id'],'沒有人，你悲劇了。',{'reply_to_message_id':message['message']['reply_to_message']['message_id'] if 'reply_to_message' in message['message'] else message['message']['message_id']})
+                if 'reply_to_message' in message['message']:
+                    try:
+                        api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+                    except APIError:
+                        pass
             ## EASTER EGGS
             elif stripText == '/stupid_bluedeck':
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
@@ -375,6 +553,8 @@ def processItem(message,db,api):
                         tmp >>= 1
                 gay = gay * 4 + (os.urandom(1)[0] & 3)
                 api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' is '+str(gay)+'% gay!',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/rollcat':
+                api.query('sendAnimation',{'chat_id':message['message']['chat']['id'],'animation':'CgACAgQAAx0EURLyAgACCxJeonZ7NV82zyGwKOcGKN8VlJLS6wACaQIAAiArFFHKQfpOXpd2ZBkE','reply_to_message_id':message['message']['message_id']})
             elif stripText == '/taf':
                 tafQuery = message['message']['text'].split(' ',1)
                 if len(tafQuery) == 2 and len(tafQuery[1]) == 4:
@@ -458,7 +638,7 @@ def processItem(message,db,api):
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == "/userid":
-                api.sendMessage(message['message']['chat']['id'],'User ID: '+str(message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['forward_from']['id'] if 'forward_from' in message['message'] else message['message']['from']['id']),{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'User ID: '+str(message['message']['reply_to_message']['forward_from']['id'] if ('reply_to_message' in message['message'] and 'forward_from' in message['message']['reply_to_message']) else message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['from']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/lastid':
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
@@ -466,10 +646,12 @@ def processItem(message,db,api):
             elif stripText == '/online':
                 if 'username' not in message['message']['from']:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。')
-                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                    if message['message']['chat']['type'] != 'private':
+                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 elif db[3].hasItem(str(message['message']['from']['id'])):
                     tmp=api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已在線上管理員列表中。請使用 /offline 將您從該列表移除。')
-                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                    if message['message']['chat']['type'] != 'private':
+                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 else:
                     tmp = message['message']['text'].split(' ',1)
                     if len(tmp) == 2 and tmp[1].strip().lower() == 'no pm':
@@ -477,26 +659,33 @@ def processItem(message,db,api):
                     else:
                         db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),str(int(time.time()))])
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已成功加入線上管理員列表。請使用 /offline 將您從該列表移除。')
-                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
-                try:
-                    api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
-                except APIError:
-                    print('Message https://t.me/'+str(message['message']['chat']['id'])+'/'+str(message['message']['message_id'])+' failed to be removed.')
+                    if message['message']['chat']['type'] != 'private':
+                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})        
+                if message['message']['chat']['type'] != 'private':
+                    try:
+                        api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+                    except APIError:
+                        print('Message https://t.me/'+str(message['message']['chat']['id'])+'/'+str(message['message']['message_id'])+' failed to be removed.')
             elif stripText == '/offline':
                 if db[3].hasItem(str(message['message']['from']['id'])):
                     db[3].remItem(str(message['message']['from']['id']))
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已成功自線上管理員列表中移除。')
-                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                    if message['message']['chat']['type'] != 'private':
+                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 else:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您不在線上管理員列表中。請使用 /online 將您加入該列表。')
-                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
-                try:
-                    api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
-                except APIError:
-                    print('Message https://t.me/'+str(message['message']['chat']['id'])+'/'+str(message['message']['message_id'])+' failed to be removed.')
+                    if message['message']['chat']['type'] != 'private':
+                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                if message['message']['chat']['type'] != 'private':
+                    try:
+                        api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+                    except APIError:
+                        print('Message https://t.me/'+str(message['message']['chat']['id'])+'/'+str(message['message']['message_id'])+' failed to be removed.')
             elif stripText == "/admin":
                 if message['message']['chat']['type'] not in ('supergroup','group'):
                     api.sendMessage(message['message']['chat']['id'],'抱歉，您僅可在群組或超級群組中呼叫管理員。',{'reply_to_message_id':message['message']['message_id']})
+                elif 'reply_to_message' not in message['message']:
+                    api.sendMessage(message['message']['chat']['id'],'使用 /admin 呼叫管理員時，請回覆需要管理員注意的消息。濫用該指令可能導致您被封禁，請慎重使用。',{'reply_to_message_id':message['message']['message_id']})
                 else:
                     adminList = api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})
                     result = []
@@ -510,6 +699,77 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],', '.join(result)+'，有人找管理啦。',{'reply_to_message_id':message['message']['message_id']})
                     else:
                         api.sendMessage(message['message']['chat']['id'],'抱歉，本群暫無在線上的管理員可供呼叫。',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == "/isadmin":
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    if api.clearDelayQuery() > 10:
+                        api.sendMessage(message['message']['chat']['id'],"抱歉，機器人過於繁忙，請稍後再試。",{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        cuid = message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['from']['id']
+                        t = threading.Thread(target=checkAdminGroup,args=(api,cuid,message['message'],tgGroupConf.groupID))
+                        t.start()
+                        api.qthread.append(t)
+            elif stripText == "/su":
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    if api.clearDelayQuery() > 10:
+                        api.sendMessage(message['message']['chat']['id'],"抱歉，機器人過於繁忙，請稍後再試。",{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        tmp = message['message']['text'].split(' ',1)
+                        newTitle = '' if len(tmp) == 1 else tmp[1].strip()
+                        t = threading.Thread(target=metaSu,args=(api,newTitle,message['message'],tgGroupConf.groupID))
+                        t.start()
+                        api.qthread.append(t)
+            elif stripText == '/exit':
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    try:
+                        api.query('promoteChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id'],'can_delete_messages':False,'can_change_info':False,'can_restrict_members':False,'can_invite_users':False,'can_pin_messages':False,'can_promote_members':False})
+                        checkPrompt = api.sendMessage(message['message']['chat']['id'],'已成功更改您的權限',{'reply_to_message_id':message['message']['message_id']})
+                        api.delayBatchQuery(10,('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']}),('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':checkPrompt}))
+                    except APIError:
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，更改您的權限失敗了',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/updateadminlist':
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    yourPerm = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    if yourPerm['status'] not in ('creator','administrator'):
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有本群管理員方可使用 /updateAdminList 更新管理員列表。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        t = threading.Thread(target=metaAdminList,args=(api,message['message'],tgGroupConf.groupID))
+                        t.start()
+                        api.qthread.append(t)
+            elif stripText == '/adminlistinfo':
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    yourPerm = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    if yourPerm['status'] not in ('creator','administrator'):
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有本群管理員方可使用 /updateAdminList 更新管理員列表。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        if 'metaAdminList' in api.info:
+                            api.sendMessage(message['message']['chat']['id'],'管理員列表於 '+str(datetime.timedelta(seconds=time.time()-api.info['metaAdminList']['time']))+' 前完成更新。',{'reply_to_message_id':message['message']['message_id']})
+                        else:
+                            api.sendMessage(message['message']['chat']['id'],'管理員列表尚未創建，請使用 /updateAdminList 創建。',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == "/discussion_start":
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    yourPerm = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    if yourPerm['status'] in ('creator','administrator'):
+                        if 'metaDiscussion' not in api.info:
+                            api.info['metaDiscussion']={'queue':{},'tmpuser':{},'tmpadmin':{},'mid':api.sendMessage(message['message']['chat']['id'],'希望發言的用戶列表：\n暫無',{'reply_markup':{'inline_keyboard':[[{'text':'我要發言','callback_data':'speak'}]]}})}
+                            if 'metaAdminList' not in api.info:
+                                api.sendMessage(message['message']['chat']['id'],'注意：管理員列表尚未創建，請使用 /updateAdminList 創建。',{'reply_to_message_id':message['message']['message_id']})
+                        else:
+                            api.sendMessage(message['message']['chat']['id'],'啟動失敗：已有正在進行的討論。')
+            elif stripText == '/discussion_end':
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    yourPerm = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    if yourPerm['status'] in ('creator','administrator'):
+                        if 'metaDiscussion' in api.info:
+                            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':api.info['metaDiscussion']['mid']})
+                            for item in api.info['metaDiscussion']['tmpuser']:
+                                try:
+                                    time.sleep(0.5) #AntiFlood
+                                    api.query('promoteChatMember',{'chat_id':message['message']['chat']['id'],'user_id':item,'can_delete_messages':False,'can_change_info':False,'can_restrict_members':False,'can_invite_users':False,'can_pin_messages':False,'can_promote_members':False})
+                                except APIError:
+                                    api.sendMessage(message['message']['chat']['id'],'為用戶'+api.info['metaDiscussion']['tmpuser'][item]+' ('+str(item)+') 自動除權失敗。')
+                            api.info.pop('metaDiscussion')
+                        else:
+                            api.sendMessage(message['message']['chat']['id'],'啟動失敗：暫無正在進行的討論。')
             elif stripText == "/warn":
                 api.sendMessage(message['message']['chat']['id'],'本機器人可以用於警告用戶，請使用 #warn 附帶理由以作出警告。',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/warnrule':
