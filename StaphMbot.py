@@ -395,11 +395,70 @@ def processItem(message,db,api):
                 else:
                     tafData = 'Usage: /metar <ICAO code>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
+            elif stripText in ('/iataicao','/icaoiata'):
+                tafQuery = message['message']['text'].split(' ',1)
+                if len(tafQuery) == 2 and len(tafQuery[1]) in (3,4):
+                    try:
+                        tafData = ur.urlopen('http://localhost/cgi-bin/airportinfo.cgi?info='+('ICAO' if len(tafQuery[1]) == 3 else 'IATA')+'&airport='+tafQuery[1]).read().decode('UTF-8').strip()
+                    except ue.HTTPError:
+                        tafData = 'Airport info lookup failed.'
+                else:
+                    tafData = 'Usage: /icaoiata <ICAO code>|<IATA code>'
+                api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/airportname':
+                tafQuery = message['message']['text'].split(' ',1)
+                if len(tafQuery) == 2 and len(tafQuery[1]) in (3,4):
+                    try:
+                        tafData = ur.urlopen('http://localhost/cgi-bin/airportinfo.cgi?info=Info&airport='+tafQuery[1]).read().decode('UTF-8').strip()
+                    except ue.HTTPError:
+                        tafData = 'Airport info lookup failed.'
+                else:
+                    tafData = 'Usage: /airportname <ICAO code>|<IATA code>'
+                api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/metarquiz':
+                try:
+                    quiz = ur.urlopen('http://localhost/cgi-bin/qa.cgi').read().decode('UTF-8').strip()
+                except ue.HTTPError:
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，問題生成失敗了。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    if quiz == 'Error':
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，問題生成失敗了。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        quiz_q = quiz.split('='*12)
+                        quiz_a = quiz_q[1].split('='*9)
+                        quiz_q = quiz_q[0].split('\n',2)
+                        api.sendMessage(message['message']['chat']['id'],quiz_q[2],{'reply_to_message_id':message['message']['message_id'],'parse_mode':'HTML','reply_markup':{'inline_keyboard':[[{'text':item[1:].strip().split('\n',1)[1],'callback_data':'qa|'+quiz_q[0]+'|'+quiz_q[1]+'|'+item[1:].strip().split('\n',1)[0]}] for item in quiz_a]}})
+            elif stripText == '/killdice':
+                queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
+                if queryBy['status'] not in ('creator','administrator'):
+                    api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /killdice 刪除未來的 Dice/Dart。",{"reply_to_message_id":message['message']['message_id']})
+                else:
+                    diceQuery = message['message']['text'].split(' ',1)
+                    if len(diceQuery) != 2:
+                        api.sendMessage(message['message']['chat']['id'],"Usage: /killdice delay|off",{'reply_to_message_id':message['message']['message_id']})
+                    elif diceQuery[1] == "off":
+                        if 'killDice' not in api.info or message['message']['chat']['id'] not in api.info['killDice']:
+                            api.sendMessage(message['message']['chat']['id'],"抱歉，此處並未啟用 /killdice。",{'reply_to_message_id':message['message']['message_id']})
+                        else:
+                            api.info['killDice'].pop(message['message']['chat']['id'])
+                            api.sendMessage(message['message']['chat']['id'],"此處已停用 /killdice。",{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        try:
+                            tmp = int(diceQuery[1])
+                        except ValueError:
+                            api.sendMessage(message['message']['chat']['id'],"Usage: /killdice delay|off",{'reply_to_message_id':message['message']['message_id']})
+                        else:
+                            if 'killDice' not in api.info:
+                                api.info['killDice'] = {}
+                            api.info['killDice'][message['message']['chat']['id']] = tmp
+                            api.sendMessage(message['message']['chat']['id'],"機器人將試圖於發出 "+diceQuery[1]+" 秒後刪除 Dice/Dart。",{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/poem':
+                api.sendMessage(message['message']['chat']['id'],ur.urlopen('http://localhost/cgi-bin/poem.cgi').read().decode('UTF-8').strip(),{'reply_to_message_id':message['message']['message_id']})
             ##
             elif stripText == '/groupid':
                 api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == "/userid":
-                api.sendMessage(message['message']['chat']['id'],'User ID: '+str(message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['from']['id']),{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'User ID: '+str(message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['forward_from']['id'] if 'forward_from' in message['message'] else message['message']['from']['id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/lastid':
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
