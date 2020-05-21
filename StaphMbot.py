@@ -643,6 +643,10 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
                 api.sendMessage(message['message']['chat']['id'],'Uptime:\n<pre>'+subprocess.check_output('uptime').decode().strip()+'</pre>\nThread: '+str(api.clearDelayQuery()),{'parse_mode':'HTML','reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/freedb':
+                for item in db:
+                    item.updateDB()
+                api.sendMessage(message['message']['chat']['id'],'Database unlocked.',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/online':
                 if 'username' not in message['message']['from']:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。')

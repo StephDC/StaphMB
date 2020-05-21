@@ -26,6 +26,8 @@ class sqliteDB():
         try:
             self.data = self.db.cursor()
             self.header = self.data.execute('select * from "'+dbTable+'" where header = "header"').fetchone()
+            self.data.close()
+            self.data = self.db.cursor()
         except sqlite3.OperationalError:
             raise sqliteDBError('no such table - '+dbTable)
 
@@ -47,10 +49,15 @@ class sqliteDB():
         return self.__str__()
 
     def hasItem(self,item):
-        return self.data.execute('select * from "'+self.table+'" where header=?',(item,)).fetchone() is not None
+        result = self.data.execute('select * from "'+self.table+'" where header=?',(item,)).fetchone() is not None
+        self.data.close()
+        self.data = self.db.cursor()
+        return result
 
     def getItem(self,item,key):
         data = self.data.execute('select "'+key+'" from "'+self.table+'" where header=?',(item,)).fetchone()
+        self.data.close()
+        self.data = self.db.cursor()
         if data is not None:
             return data[0]
         else:
@@ -66,8 +73,8 @@ class sqliteDB():
         for key in range(len(tmp)):
             self.data.execute('update "'+self.table+'" set "'+self.header[key+1]+'" = "'+str(tmp[key])+'" where header = "'+item[0]+'"')
         self.data.close()
-        self.data = self.db.cursor()
         self.db.commit()
+        self.data = self.db.cursor()
 
     def remItem(self,item):
         if not self.hasItem(item):
@@ -77,14 +84,14 @@ class sqliteDB():
             result.append(self.getItem(item,key))
         self.data.execute('delete from "'+self.table+'" where header = ?',(item,))
         self.data.close()
-        self.data = self.db.cursor()
         self.db.commit()
+        self.data = self.db.cursor()
         return result
 
     def updateDB(self):
         self.data.close()
-        self.data = self.db.cursor()
         self.db.commit()
+        self.data = self.db.cursor()
 
 # Input: fileName - The file name of the new SQLite file
 #        columnList - The list of every columns except "header" column
