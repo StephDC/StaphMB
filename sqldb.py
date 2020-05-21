@@ -65,6 +65,8 @@ class sqliteDB():
         tmp = item[1:]
         for key in range(len(tmp)):
             self.data.execute('update "'+self.table+'" set "'+self.header[key+1]+'" = "'+str(tmp[key])+'" where header = "'+item[0]+'"')
+        self.data.close()
+        self.data = self.db.cursor()
         self.db.commit()
 
     def remItem(self,item):
@@ -74,10 +76,14 @@ class sqliteDB():
         for key in self.header[1:]:
             result.append(self.getItem(item,key))
         self.data.execute('delete from "'+self.table+'" where header = ?',(item,))
+        self.data.close()
+        self.data = self.db.cursor()
         self.db.commit()
         return result
 
     def updateDB(self):
+        self.data.close()
+        self.data = self.db.cursor()
         self.db.commit()
 
 # Input: fileName - The file name of the new SQLite file
