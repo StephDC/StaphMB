@@ -850,12 +850,8 @@ def processItem(message,db,api):
             elif stripText == '/online':
                 if 'username' not in message['message']['from']:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。')
-                    if message['message']['chat']['type'] != 'private':
-                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 elif db[3].hasItem(str(message['message']['from']['id'])):
                     tmp=api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已在線上管理員列表中。請使用 /offline 將您從該列表移除。')
-                    if message['message']['chat']['type'] != 'private':
-                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 else:
                     tmp = message['message']['text'].split(' ',1)
                     if len(tmp) == 2 and tmp[1].strip().lower() == 'no pm':
@@ -863,8 +859,8 @@ def processItem(message,db,api):
                     else:
                         db[3].addItem([str(message['message']['from']['id']),str(int(time.time())),str(int(time.time()))])
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已成功加入線上管理員列表。請使用 /offline 將您從該列表移除。')
-                    if message['message']['chat']['type'] != 'private':
-                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp}) 
+                if message['message']['chat']['type'] != 'private':
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp}) 
                 if message['message']['chat']['type'] != 'private':
                     try:
                         api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
@@ -874,12 +870,10 @@ def processItem(message,db,api):
                 if db[3].hasItem(str(message['message']['from']['id'])):
                     db[3].remItem(str(message['message']['from']['id']))
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您已成功自線上管理員列表中移除。')
-                    if message['message']['chat']['type'] != 'private':
-                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 else:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 您不在線上管理員列表中。請使用 /online 將您加入該列表。')
-                    if message['message']['chat']['type'] != 'private':
-                        api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
+                if message['message']['chat']['type'] != 'private':
+                    api.delayQuery(30,'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':tmp})
                 if message['message']['chat']['type'] != 'private':
                     try:
                         api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
