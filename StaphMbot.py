@@ -1231,7 +1231,7 @@ def run(db,api,outdev):
                         notProcessed.append(data)
                         tooBusy = True
             ## Global commands
-                if 'message' in item and 'text' in item['message'] and item['message']['text'].lower() in ('/groupthread','/groupthread'+api.info['username'].lower()):
+                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and item['message']['text'].lower() in ('/groupthread','/groupthread'+api.info['username'].lower()):
                     api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
             ## Global commands end
                 elif not tooBusy:
