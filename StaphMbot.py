@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import base64
 import datetime
 import json
 import os
@@ -478,6 +479,8 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],"Usage: /webpassword GroupID",{'reply_to_message_id':message['message']['message_id']})
                     else:
                         target = tmp[1].strip()
+                        if type(target) is str and len(target) >0 and target[0] == '@':
+                            target = api.query('getChat',{'chat_id':target})['id']
                 if target != None:
                     try:
                         tmp = api.query('getChatMember',{'chat_id':target,'user_id':message['message']['from']['id']},retry=0)
@@ -488,13 +491,17 @@ def processItem(message,db,api):
                             api.sendMessage(message['message']['chat']['id'],'You are not admin of the group you are requesting API key for.',{'reply_to_message_id':message['message']['message_id']})
                         else:
                             try:
-                                api.query('sendMessage',{'chat_id':message['message']['from']['id'],'text':'Generating web API key...'},retry=0)
+                                tmp = api.query('sendMessage',{'chat_id':message['message']['from']['id'],'text':'Generating web API key...'},retry=0)
                             except APIError:
                                 api.sendMessage(message['message']['chat']['id'],'You need to PM me first.',{'reply_to_message_id':message['message']['message_id']})
                             else:
-                                key = base64.b64encode(os.urandom(6),'_-').decode('ASCII')
-                                db[4].addItem([str(message['message']['from']['id']),key,str(int(time.time())),str(message['message']['chat']['id']),""])
-                                api.sendMessage(message['message']['from']['id'],'Your web API key to group '+str(target)+' is:\n<pre>'+str(message['message']['from']['id'])+':'+key+'</pre>\nThis key would be valid till the earliest of '+db[0].getItem('keyexp','value')+' s after the last use, or a new key is generated for you.',{'parse_mode':'HTML'})
+                                key = base64.b64encode(os.urandom(15),b'_-').decode('ASCII')
+                                db[4].addItem([str(message['message']['from']['id']),key,str(int(time.time())),str(target),""])
+                                api.sendMessage(message['message']['from']['id'],'Your web API key to group '+str(target)+' is:\n<pre>'+str(message['message']['from']['id'])+':'+key+'</pre>\n\nThis key would be valid till the earliest of '+db[0].getItem('keyexp','value')+' s after the last use, or a new key is generated for you.',{'parse_mode':'HTML'})
+                                try:
+                                    api.query('deleteMessage',{'chat_id':message['message']['from']['id'],'message_id':tmp})
+                                except APIError:
+                                    pass
             elif stripText == '/online':
                 if 'username' not in message['message']['from']:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。')
@@ -712,7 +719,8 @@ def processItem(message,db,api):
                     api.query("leaveChat",{"chat_id":message['message']['chat']['id']})
     db[0].addItem(['lasttime',message['message']['date']])
 
-def updateWorker(db,api,stdin,happyEnd):
+def updateWorker(dbn,outdev,api,stdin,happyEnd):
+    db = initiateDB(dbn,outdev)
     while happyEnd.empty():
         while not stdin.empty():
             try:
@@ -721,12 +729,12 @@ def updateWorker(db,api,stdin,happyEnd):
                 pass
         time.sleep(0.5)
 
-def run(db,api):
+def run(db,api,outdev):
     data = api.query('getUpdates')
     resPos = int(db[0].getItem('lastid','value'))
     msgQueue = queue.Queue()
     killSig = queue.Queue()
-    msgThr = threading.Thread(target=updateWorker,args=(db,api,msgQueue,killSig))
+    msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
     msgThr.start()
     botGroup = {'default':(msgQueue,killSig,msgThr)}
     for item in range(len(data)):
@@ -749,7 +757,7 @@ def run(db,api):
                 if queueTarget not in botGroup:
                     msgQueue = queue.Queue()
                     killSig = queue.Queue()
-                    msgThr = threading.Thread(target=updateWorker,args=(db,api,msgQueue,killSig))
+                    msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
                     msgThr.start()
                     botGroup[queueTarget] = (msgQueue,killSig,msgThr)
             ## Global commands
@@ -795,7 +803,7 @@ def main(args):
         print('FATAL ERROR: Corrupted database or wrong parameter given.')
         sys.exit(3)
     print('The configurations have been loaded successfully.')
-    run(db,api)
+    run(db,api,outdev)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
