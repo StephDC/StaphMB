@@ -464,6 +464,33 @@ def processItem(message,db,api):
                 for item in db:
                     item.updateDB()
                 api.sendMessage(message['message']['chat']['id'],'Database unlocked.',{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/webpassword':
+                target = None
+                if message['message']['chat']['type'] in ('group','supergroup'):
+                    target = message['message']['chat']['id']
+                elif message['message']['chat']['type'] == 'private':
+                    tmp = message['message']['text'].split(' ',1)
+                    if len(tmp) == 1:
+                        api.sendMessage(message['message']['chat']['id'],"Usage: /webpassword GroupID",{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        target = tmp[1].strip()
+                if target != None:
+                    try:
+                        tmp = api.query('getChatMember',{'chat_id':target,'user_id':message['message']['from']['id']},retry=0)
+                    except APIError:
+                        api.sendMessage(message['message']['chat']['id'],'Failed to check group permission.',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        if tmp['status'] not in ('administrator','creator'):
+                            api.sendMessage(message['message']['chat']['id'],'You are not admin of the group you are requesting API key for.',{'reply_to_message_id':message['message']['message_id']})
+                        else:
+                            try:
+                                api.query('sendMessage',{'chat_id':message['message']['from']['id'],'text':'Generating web API key...'},retry=0)
+                            except APIError:
+                                api.sendMessage(message['message']['chat']['id'],'You need to PM me first.',{'reply_to_message_id':message['message']['message_id']})
+                            else:
+                                key = base64.b64encode(os.urandom(6),'_-').decode('ASCII')
+                                db[4].addItem([str(message['message']['from']['id']),key,str(int(time.time())),str(message['message']['chat']['id']),""])
+                                api.sendMessage(message['message']['from']['id'],'Your web API key to group '+str(target)+' is:\n<pre>'+str(message['message']['from']['id'])+':'+key+'</pre>\nThis key would be valid till the earliest of '+db[0].getItem('keyexp','value')+' s after the last use, or a new key is generated for you.',{'parse_mode':'HTML'})
             elif stripText == '/online':
                 if 'username' not in message['message']['from']:
                     tmp = api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+': 抱歉，您需要擁有一個 Telegram 用戶名稱方可加入線上管理員列表。')
