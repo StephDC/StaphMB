@@ -52,7 +52,7 @@ def main(args):
         db.append(sqldb.sqliteDB(tmp,'admin'))
     if db[0].getItem('dbver','value') == '1.3':
         update3(db)
-        db.append(sqldb.sqliteDB('tmp','auth'))
+        db.append(sqldb.sqliteDB(tmp,'auth'))
     print("Your database is up-to-date.")
 
 if __name__ == '__main__':
