@@ -173,7 +173,7 @@ def initiateDB(fName,outdev):
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.3':
+    if conf.getItem('dbver','value') != '1.4':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -187,8 +187,12 @@ def initiateDB(fName,outdev):
         admin = sqldb.sqliteDB(conf.db,'admin')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted admin table')
+    try:
+        auth = sqldb.sqliteDB(conf.db,'auth')
+    except sqldb.sqliteDBError:
+        raise APIError('DB','Corrupted auth table')
     outdev.writeln('DB File '+fName+' loaded.')
-    return (conf,group,warn,admin)
+    return (conf,group,warn,admin,auth)
 
 def addGroup(gid,db,outdev):
     if not db[1].hasItem(str(gid)):
