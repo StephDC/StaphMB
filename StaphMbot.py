@@ -481,7 +481,7 @@ def processItem(message,db,api):
                         target = tmp[1].strip()
                 if target != None:
                     try:
-                        tmp = api.query('getChat',{'chat_id':target})['id']
+                        tmp = api.query('getChat',{'chat_id':target})
                         target = tmp['id']
                         targetName = tmp['username'] if 'username' in tmp else tmp['title'] if 'title' in tmp else str(target)
                         tmp = api.query('getChatMember',{'chat_id':target,'user_id':message['message']['from']['id']},retry=0)
@@ -724,10 +724,7 @@ def updateWorker(dbn,outdev,api,stdin,happyEnd):
     db = initiateDB(dbn,outdev)
     while happyEnd.empty():
         while not stdin.empty():
-            try:
-                processItem(stdin.get(),db,api)
-            except:
-                pass
+            processItem(stdin.get(),db,api)
         time.sleep(0.5)
 
 def run(db,api,outdev):
