@@ -3,6 +3,7 @@
 import datetime
 import json
 import os
+import queue
 import sqldb
 import subprocess
 import sys
@@ -681,6 +682,15 @@ def processItem(message,db,api):
                     api.query("leaveChat",{"chat_id":message['message']['chat']['id']})
     db[0].addItem(['lasttime',message['message']['date']])
 
+def updateWorker(db,api,stdin,happyEnd):
+    while happyEnd.empty():
+        while not stdin.empty():
+            try:
+                processItem(stdin.get(),db,api)
+            except:
+                pass
+        time.sleep(0.5)
+
 def run(db,api):
     data = api.query('getUpdates')
     resPos = int(db[0].getItem('lastid','value'))
@@ -692,12 +702,37 @@ def run(db,api):
     for item in data:
         processItem(item,db,api)
     api.logOut.writeln('All pending messages processed.')
+    ## Start default thread for non-messages
+    msgQueue = queue.Queue()
+    killSig = queue.Queue()
+    msgThr = threading.Thread(target=updateWorker,args=(db,api,msgQueue,killSig))
+    msgThr.start()
+    botGroup = {'default':(msgQueue,killSig,msgThr)}
     while True:
         time.sleep(2) #Max frequency 30 messages/group
         data = api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
         for item in data:
-            processItem(item,db,api)
+            queueTarget = 'default' if 'message' not in item else item['message']['chat']['id']
+            if queueTarget not in botGroup:
+                msgQueue = queue.Queue()
+                killSig = queue.Queue()
+                msgThr = threading.Thread(target=updateWorker,args=(db,api,msgQueue,killSig))
+                msgThr.start()
+                botGroup[queueTarget] = (msgQueue,killSig,msgThr)
+            ## Global commands
+            if 'message' in item and text in item['message'] and item['message']['text'] in ('/uptime','/uptime@'+getNameRep(api.info)):
+                api.sendMessage(item['message']['chat']['id'],'\n'.join([str(i)+'('+str(threading.get_native_id(botGroup[i][2]))+')\t'+str(botGroup[i][0].qsize()) for i in botGroup]),{'reply_to_message_id':item['message']['message_id']})
+            ## Global commands end
+            else:
+                botGroup[queueTarget][0].put(item)
         api.clearDelayQuery()
+        ## Garbage Collection
+        for item in botGroup:
+            if item != 'default':
+                if botGroup[item][0].empty():
+                    botGroup[item][1].put(True)
+                    botGroup[item][2].join()
+                    botGroup.pop(item)
 
 def main(args):
     outdev = stdOut(args[2]) if len(args)==3 else stdOut()
