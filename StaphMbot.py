@@ -479,10 +479,11 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],"Usage: /webpassword GroupID",{'reply_to_message_id':message['message']['message_id']})
                     else:
                         target = tmp[1].strip()
-                        if type(target) is str and len(target) >0 and target[0] == '@':
-                            target = api.query('getChat',{'chat_id':target})['id']
                 if target != None:
                     try:
+                        tmp = api.query('getChat',{'chat_id':target})['id']
+                        target = tmp['id']
+                        targetName = tmp['username'] if 'username' in tmp else tmp['title'] if 'title' in tmp else str(target)
                         tmp = api.query('getChatMember',{'chat_id':target,'user_id':message['message']['from']['id']},retry=0)
                     except APIError:
                         api.sendMessage(message['message']['chat']['id'],'Failed to check group permission.',{'reply_to_message_id':message['message']['message_id']})
@@ -491,13 +492,13 @@ def processItem(message,db,api):
                             api.sendMessage(message['message']['chat']['id'],'You are not admin of the group you are requesting API key for.',{'reply_to_message_id':message['message']['message_id']})
                         else:
                             try:
-                                tmp = api.query('sendMessage',{'chat_id':message['message']['from']['id'],'text':'Generating web API key...'},retry=0)
+                                tmp = api.query('sendMessage',{'chat_id':message['message']['from']['id'],'text':'Generating web API key...'},retry=0)['message_id']
                             except APIError:
                                 api.sendMessage(message['message']['chat']['id'],'You need to PM me first.',{'reply_to_message_id':message['message']['message_id']})
                             else:
                                 key = base64.b64encode(os.urandom(15),b'_-').decode('ASCII')
                                 db[4].addItem([str(message['message']['from']['id']),key,str(int(time.time())),str(target),""])
-                                api.sendMessage(message['message']['from']['id'],'Your web API key to group '+str(target)+' is:\n<pre>'+str(message['message']['from']['id'])+':'+key+'</pre>\n\nThis key would be valid till the earliest of '+db[0].getItem('keyexp','value')+' s after the last use, or a new key is generated for you.',{'parse_mode':'HTML'})
+                                api.sendMessage(message['message']['from']['id'],'Your web API key to group '+str(targetName)+' is:\n<pre>'+str(message['message']['from']['id'])+':'+key+'</pre>\n\nThis key would be valid till the earliest of '+db[0].getItem('keyexp','value')+' s after the last use, or a new key is generated for you.',{'parse_mode':'HTML'})
                                 try:
                                     api.query('deleteMessage',{'chat_id':message['message']['from']['id'],'message_id':tmp})
                                 except APIError:
