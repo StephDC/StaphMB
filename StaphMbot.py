@@ -733,6 +733,22 @@ def processItem(message,db,api):
                             tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+'uid:'+message['message']['reply_to_message']['sticker']['file_unique_id'])
                             db[5].addItem([message['message']['reply_to_message']['sticker']['file_unique_id'],message['message']['reply_to_message']['sticker']['file_id'],str(int(time.time()))])
                         api.sendMessage(message['message']['chat']['id'],"該 Sticker"+((setSuffix+" "+message['message']['reply_to_message']['sticker']['set_name'])if setSuffix else '')+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
+            elif stripText == '/killallsticker':
+                if message['message']['chat']['id'] in tgGroupConf.metaID:
+                    if 'reply_to_message' not in message['message'] or 'sticker' not in message['message']['reply_to_message']:
+                        api.sendMessage(message['message']['chat']['id'],"用法：使用 /killallsticker 回覆 Sticker 以全域禁用該 Sticker 所屬的 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                    elif 'set_name' not in message['message']['reply_to_message']['sticker'] or '|' in message['message']['reply_to_message']['sticker']['set_name']:
+                        api.sendMessage(message['message']['chat']['id'],"抱歉，機器人無法禁用該 Sticker 所屬的 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                    else:
+                        queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
+                        if queryBy['status'] not in ('creator','administrator') or (queryBy['status'] == 'administrator' and ('can_promote_members' not in queryBy or not queryBy['can_promote_members'])):
+                            api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權行政員方可使用 /killsticker 於全域禁止使用該 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                        else:
+                            for item in tgGroupConf.groupID:
+                                tmp = db[1].getItem(str(item),'bansticker')
+                                if message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
+                                    tmp = db[1].chgItem(str(item),'bansticker',tmp+('|' if tmp else '')+message['message']['reply_to_message']['sticker']['set_name'])
+                            api.sendMessage(message['message']['chat']['id'],"該 Sticker 所屬的 Sticker set "+message['message']['reply_to_message']['sticker']['set_name']+' 已被全域禁用。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/killdice':
                 queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
                 if queryBy['status'] not in ('creator','administrator'):
