@@ -516,6 +516,8 @@ def processItem(message,db,api):
                             except APIError:
                                 api.sendMessage(message['message']['chat']['id'],'You need to PM me first.',{'reply_to_message_id':message['message']['message_id']})
                             else:
+                                if message['message']['chat']['type'] in ('group','supergroup'):
+                                    api.sendMessage(message['message']['chat']['id'],'Please check you PM.',{'reply_to_message_id':message['message']['message_id']})
                                 key = base64.b64encode(os.urandom(15),b'_-').decode('ASCII')
                                 db[4].addItem([str(message['message']['from']['id']),key,str(int(time.time())),str(target),""])
                                 api.sendMessage(message['message']['from']['id'],'Your web API key to group '+str(targetName)+' is:\n<pre>'+str(message['message']['from']['id'])+':'+key+'</pre>\n\nThis key would be valid till the earliest of '+db[0].getItem('keyexp','value')+' s after the last use, or a new key is generated for you.',{'parse_mode':'HTML'})
