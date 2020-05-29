@@ -88,6 +88,16 @@ class sqliteDB():
         self.data = self.db.cursor()
         return result
 
+    def chgItem(self,item,key,val):
+        if not self.hasItem(item):
+            raise sqliteDBError('item not found - '+ item)
+        elif key not in self.header[1:]:
+            raise sqliteDBError('key not found - '+ key)
+        result = self.getItem(item,key)
+        self.data.execute('UPDATE ? SET ? = ? WHERE header = ?',(self.table,key,val,item))
+        self.updateDB()
+        return result
+
     def updateDB(self):
         self.data.close()
         self.db.commit()

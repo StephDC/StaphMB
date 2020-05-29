@@ -174,7 +174,7 @@ def initiateDB(fName,outdev):
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.4':
+    if conf.getItem('dbver','value') != '1.5':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -360,6 +360,12 @@ def processItem(message,db,api):
     # KillDice
     if 'dice' in message['message'] and 'killDice' in api.info and message['message']['chat']['id'] in api.info['killDice']:
         api.delayQuery(api.info['killDice'][message['message']['chat']['id']],'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+    if 'sticker' in message['message'] and message['message']['sticker']['set_name'] in db[1].getItem(str(message['message']['chat']['id']),'bansticker').split('|'):
+        try:
+            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
+            api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' 發送的一個 Sticker 由於被禁止於此群使用，已被刪除。')
+        except APIError:
+            api.sendMessage(message['message']['chat']['id'],('注意：本 Sticker 禁止於此群使用。',{'reply_to_message_id':message['message']['message_id']})
     if 'text' in message['message'] and message['message']['text']:
         # Process bot command
         if message['message']['text'][0] == '/':
@@ -430,6 +436,19 @@ def processItem(message,db,api):
                 else:
                     tafData = 'Usage: /airportname <ICAO code>|<IATA code>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/killsticker':
+                if 'reply_to_message' not in message['message'] or 'sticker' not in message['message']['reply_to_message']:
+                    api.sendMessage(message['message']['chat']['id'],"用法：使用 /killsticker 回覆 Sticker 以禁用該 Sticker 所屬的 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                elif 'set_name' not in message['message']['reply_to_message']['sticker'] or '|' in message['message']['reply_to_message']['sticker']['set_name']:
+                    api.sendMessage(message['message']['chat']['id'],"抱歉，機器人無法禁用該 Sticker 所屬的 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                else:
+                    queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
+                    if queryBy['status'] not in ('creator','administrator'):
+                        api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /killsticker 於本群組禁止使用該 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                    else:
+                        tmp = db[1].getItem(str(message['message']['chat']['id']),'bansticker')
+                        tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+message['message']['reply_to_message']['sticker']['set_name'])
+                        api.sendMessage(message['message']['chat']['id'],"該 Sticker 所屬的 Sticker set "+message['message']['reply_to_message']['sticker']['set_name']+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/killdice':
                 queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
                 if queryBy['status'] not in ('creator','administrator'):

@@ -40,6 +40,15 @@ def update3(db):
     db[0].addItem(['dbver','1.4'])
     print('DB version updated to 1.4')
 
+def update4(db):
+    if db[0].getItem('dbver','value') != '1.4':
+        raise TypeError("Wrong Database Version")
+    db[1].data.execute("alter table 'group' add 'bansticker'")
+    db[1].data.execute("update 'group' set bansticker = ''")
+    db[1].data.execute("update 'group' set bansticker = 'bansticker' where header='header'")
+    db[0].addItem(['dbver','1.5'])
+    print('DB version updated to 1.5')
+
 def main(args):
     tmp = sqldb.sqliteDB(args[0],'config')
     db = [tmp,sqldb.sqliteDB(tmp,'group'),sqldb.sqliteDB(tmp,'warn')]
@@ -53,6 +62,8 @@ def main(args):
     if db[0].getItem('dbver','value') == '1.3':
         update3(db)
         db.append(sqldb.sqliteDB(tmp,'auth'))
+    if db[0].getItem('dbver','value') == '1.4':
+        update4(db)
     print("Your database is up-to-date.")
 
 if __name__ == '__main__':
