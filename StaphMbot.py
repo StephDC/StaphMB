@@ -447,7 +447,8 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /killsticker 於本群組禁止使用該 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
                     else:
                         tmp = db[1].getItem(str(message['message']['chat']['id']),'bansticker')
-                        tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+message['message']['reply_to_message']['sticker']['set_name'])
+                        if message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
+                            tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+message['message']['reply_to_message']['sticker']['set_name'])
                         api.sendMessage(message['message']['chat']['id'],"該 Sticker 所屬的 Sticker set "+message['message']['reply_to_message']['sticker']['set_name']+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/killdice':
                 queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
