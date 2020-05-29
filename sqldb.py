@@ -94,7 +94,7 @@ class sqliteDB():
         elif key not in self.header[1:]:
             raise sqliteDBError('key not found - '+ key)
         result = self.getItem(item,key)
-        self.data.execute('UPDATE ? SET ? = ? WHERE header = ?',(self.table,key,val,item))
+        self.data.execute('UPDATE "'+self.table+'" SET "'+key+'" = ? WHERE header = ?',(val,item))
         self.updateDB()
         return result
 

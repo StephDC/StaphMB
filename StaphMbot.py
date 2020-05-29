@@ -365,7 +365,7 @@ def processItem(message,db,api):
             api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
             api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' 發送的一個 Sticker 由於被禁止於此群使用，已被刪除。')
         except APIError:
-            api.sendMessage(message['message']['chat']['id'],('注意：本 Sticker 禁止於此群使用。',{'reply_to_message_id':message['message']['message_id']})
+            api.sendMessage(message['message']['chat']['id'],'注意：本 Sticker 禁止於此群使用。',{'reply_to_message_id':message['message']['message_id']})
     if 'text' in message['message'] and message['message']['text']:
         # Process bot command
         if message['message']['text'][0] == '/':
