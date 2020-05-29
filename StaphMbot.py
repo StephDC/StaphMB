@@ -360,12 +360,18 @@ def processItem(message,db,api):
     # KillDice
     if 'dice' in message['message'] and 'killDice' in api.info and message['message']['chat']['id'] in api.info['killDice']:
         api.delayQuery(api.info['killDice'][message['message']['chat']['id']],'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
-    if 'sticker' in message['message'] and message['message']['sticker']['set_name'] in db[1].getItem(str(message['message']['chat']['id']),'bansticker').split('|'):
+    if 'sticker' in message['message']:
         try:
-            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
-            api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' 發送的一個 Sticker 由於被禁止於此群使用，已被刪除。')
-        except APIError:
-            api.sendMessage(message['message']['chat']['id'],'注意：本 Sticker 禁止於此群使用。',{'reply_to_message_id':message['message']['message_id']})
+            tmp = db[1].getItem(str(message['message']['chat']['id']),'bansticker').split('|')
+        except sqldb.sqliteDBError:
+            pass
+        else:
+            if message['message']['sticker']['set_name'] in db[1].getItem(str(message['message']['chat']['id']),'bansticker').split('|'):
+            try:
+                api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
+                api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' 發送的一個 Sticker 由於被禁止於此群使用，已被刪除。')
+            except APIError:
+                api.sendMessage(message['message']['chat']['id'],'注意：本 Sticker 禁止於此群使用。',{'reply_to_message_id':message['message']['message_id']})
     if 'text' in message['message'] and message['message']['text']:
         # Process bot command
         if message['message']['text'][0] == '/':
@@ -728,7 +734,6 @@ def processItem(message,db,api):
                                 db[1].data.execute('UPDATE "group" SET "fade"=? WHERE header=?',(dbRule[0],str(message['message']['chat']['id'])))
                                 db[1].updateDB()
                                 api.sendMessage(message['message']['chat']['id'],"警告過期規則已修改成功。",{'reply_to_message_id':message['message']['message_id']})
-
     elif 'new_chat_members' in message['message']:
         for newMember in message['message']['new_chat_members']:
             if newMember['id'] == api.info["id"]:
