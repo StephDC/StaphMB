@@ -559,7 +559,7 @@ def processCallback(api,query):
             api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已從申請發言列表中移除。'},retry=0)
         else:
             qu = api.query('getChatMember',{'chat_id':query['message']['chat']['id'],'user_id':query['from']['id']},retry=0)
-            if qu['status'] == 'creator' or (qu['status'] == 'administrator' and 'can_promote_members' in qu and qu['can_promote_members']):
+            if qu['status'] == 'creator' or (qu['status'] == 'administrator' and 'can_restrict_members' in qu and qu['can_restrict_members']):
                 newPerm = {
                     'chat_id':query['message']['chat']['id'],
                     'user_id':int(query['data']),
