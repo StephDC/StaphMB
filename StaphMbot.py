@@ -744,7 +744,7 @@ def processItem(message,db,api):
                         if queryBy['status'] not in ('creator','administrator') or (queryBy['status'] == 'administrator' and ('can_promote_members' not in queryBy or not queryBy['can_promote_members'])):
                             api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權行政員方可使用 /killsticker 於全域禁止使用該 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
                         else:
-                            for item in tgGroupConf.groupID:
+                            for item in tgGroupConf.killAllID:
                                 tmp = db[1].getItem(str(item),'bansticker')
                                 if message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
                                     tmp = db[1].chgItem(str(item),'bansticker',tmp+('|' if tmp else '')+message['message']['reply_to_message']['sticker']['set_name'])
