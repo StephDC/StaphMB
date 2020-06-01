@@ -1247,8 +1247,12 @@ def run(db,api,outdev):
                         notProcessed.append(data)
                         tooBusy = True
             ## Global commands
-                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and item['message']['text'].lower() in ('/groupthread','/groupthread'+api.info['username'].lower()):
-                    api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                gcList = ("/groupthread")
+                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and (item['message']['text'].split(' ')[0].lower() in gcList or ('@'+api.info['username'] == item['message']['text'].split(' ')[0][-len(api.info['username'])-1] and item['message']['text'].split(' ')[0][:-len(api.info['username'])-1].lower() in gcList)):
+                    if item['message']['text'].split(' ')[0] in ('/groupthread','/groupthread@'+api.info['username'].lower()):
+                        api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                    else:
+                        print("WARNING: Global command "+item['message']['text'].split(' ')[0]+" is undefined.")
             ## Global commands end
                 elif not tooBusy:
                     botGroup[queueTarget][0].put(item)
