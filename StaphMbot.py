@@ -1239,10 +1239,17 @@ def run(db,api,outdev):
                     msgThr.start()
                     botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
             ## Global commands
-                gcList = ("/groupthread")
-                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and (item['message']['text'].split(' ')[0].lower() in gcList or ('@'+api.info['username'] == item['message']['text'].split(' ')[0][-len(api.info['username'])-1] and item['message']['text'].split(' ')[0][:-len(api.info['username'])-1].lower() in gcList)):
+                gcList = ("/groupthread","/setlog")
+                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and (item['message']['text'].split(' ')[0].lower() in gcList or (len(item['message']['text']) > len(api.info['username'])+2 and '@'+api.info['username'] == item['message']['text'].split(' ')[0][-len(api.info['username'])-1] and item['message']['text'].split(' ')[0][:-len(api.info['username'])-1].lower() in gcList)):
                     if item['message']['text'].split(' ')[0] in ('/groupthread','/groupthread@'+api.info['username'].lower()):
                         api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                    elif item['message']['text'].split(' ')[0] in ('/setlog','/setlog@'+api.info['username'].lower()):
+                        tmp = item['message']['text'].split(' ')
+                        if len(tmp) == '1':
+                            api.sendMessage(item['message']['chat']['id'],'Usage: <pre>/setlog logchannel[|groupname]</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                        else:
+                            db[1].chgItem(str(item['message']['chat']['id']),'notify',tmp[1])
+                            api.sendMessage(item['message']['chat']['id'],'日誌群組已成功配置為 <pre>'+tmp[1]+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
                     else:
                         print("WARNING: Global command "+item['message']['text'].split(' ')[0]+" is undefined.")
             ## Global commands end
