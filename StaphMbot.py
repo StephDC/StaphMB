@@ -342,11 +342,13 @@ def processRule(gid,db):
             result += '永久封禁\n'
     data = db[1].getItem(str(gid),'fade').split('|')
     if data[0] == '0':
-        result += '警告期限：警告永不過期'
+        result += '警告期限：警告永不過期\n'
     elif data[0] == '1':
-        result += '警告期限：'+str(datetime.timedelta(seconds=int(data[1])))
+        result += '警告期限：'+str(datetime.timedelta(seconds=int(data[1])))+'\n'
     elif data[0] == '2':
-        result += '警告期限：每月 1 日解除 '+data[1]+' 個警告。'
+        result += '警告期限：每月 1 日解除 '+data[1]+' 個警告。\n'
+    data = db[1].getItem(str(gid),'notify')
+    result += '警告日誌：'+data
     return result
 
 def processCheck(msg,api,db):
