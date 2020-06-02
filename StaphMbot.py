@@ -1240,10 +1240,10 @@ def run(db,api,outdev):
                     botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
             ## Global commands
                 gcList = ("/groupthread","/setlog")
-                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and (item['message']['text'].split(' ')[0].lower() in gcList or (len(item['message']['text']) > len(api.info['username'])+2 and '@'+api.info['username'] == item['message']['text'].split(' ')[0][-len(api.info['username'])-1] and item['message']['text'].split(' ')[0][:-len(api.info['username'])-1].lower() in gcList)):
-                    if item['message']['text'].split(' ')[0] in ('/groupthread','/groupthread@'+api.info['username'].lower()):
+                if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and (item['message']['text'].split(' ')[0].lower() in gcList or (len(item['message']['text']) > len(api.info['username'])+2 and '@'+api.info['username'] == item['message']['text'].split(' ')[0][-len(api.info['username'])-1:] and item['message']['text'].split(' ')[0][:-len(api.info['username'])-1].lower() in gcList)):
+                    if item['message']['text'].split(' ')[0].lower() in ('/groupthread','/groupthread@'+api.info['username'].lower()):
                         api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
-                    elif item['message']['text'].split(' ')[0] in ('/setlog','/setlog@'+api.info['username'].lower()):
+                    elif item['message']['text'].split(' ')[0].lower() in ('/setlog','/setlog@'+api.info['username'].lower()):
                         tmp = item['message']['text'].split(' ')
                         if len(tmp) == '1':
                             api.sendMessage(item['message']['chat']['id'],'Usage: <pre>/setlog logchannel[|groupname]</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
