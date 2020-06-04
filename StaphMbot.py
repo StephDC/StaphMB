@@ -91,7 +91,7 @@ class tgapi:
                 time.sleep(delay)
         misc['text'] = text
         misc['chat_id'] = target
-        misc['parse_mode'] = 'MarkdownV2'
+        misc['parse_mode'] = 'HTML'
         try:
             data = self.query('sendMessage',misc,retry=0)
         except APIError:
@@ -236,7 +236,7 @@ def getNameRep(userObj):
     else:
         name = userObj['first_name']
     if 'id' in userObj:
-        return '['+name+']('+'tg://user?id='+str(userObj['id'])+')'
+        return '<a href="tg://user?id='+str(userObj['id'])+">'+name+'</a>'
     else:
         return '@'+name
 
