@@ -236,7 +236,7 @@ def getNameRep(userObj):
     else:
         name = userObj['first_name']
     if 'id' in userObj:
-        return '<a href="tg://user?id='+str(userObj['id'])+'>'+name+'</a>'
+        return '<a href="tg://user?id='+str(userObj['id'])+'">'+name+'</a>'
     else:
         return '@'+name
 
