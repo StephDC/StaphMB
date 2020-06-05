@@ -773,6 +773,7 @@ def updateWorker(dbn,outdev,api,stdin,happyEnd):
                 time.sleep(0.5)
             except Exception as e:
                 print("Worker Error:",e,tmp,sep="\t")
+        time.sleep(0.5)
 
 def run(db,api,outdev):
     data = api.query('getUpdates')
