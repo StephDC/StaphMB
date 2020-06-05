@@ -761,8 +761,12 @@ def updateWorker(dbn,outdev,api,stdin,happyEnd):
     db = initiateDB(dbn,outdev)
     while happyEnd.empty():
         while not stdin.empty():
-            processItem(stdin.get(),db,api)
-        time.sleep(0.5)
+            try:
+                tmp = stdin.get()
+                processItem(tmp,db,api)
+                time.sleep(0.5)
+            except Exception as e:
+                print("Worker Error:",e,tmp,sep="\t")
 
 def run(db,api,outdev):
     data = api.query('getUpdates')
