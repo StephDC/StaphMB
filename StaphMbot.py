@@ -1239,7 +1239,7 @@ def run(db,api,outdev):
                     msgThr.start()
                     botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
             ## Global commands
-                gcList = ("/groupthread","/setlog")
+                gcList = ("/groupthread","/setlog","/sqlite3")
                 if 'message' in item and item['message']['from']['id'] in tgGroupConf.superAdmin and 'text' in item['message'] and (item['message']['text'].split(' ')[0].lower() in gcList or (len(item['message']['text']) > len(api.info['username'])+2 and '@'+api.info['username'] == item['message']['text'].split(' ')[0][-len(api.info['username'])-1:] and item['message']['text'].split(' ')[0][:-len(api.info['username'])-1].lower() in gcList)):
                     if item['message']['text'].split(' ')[0].lower() in ('/groupthread','/groupthread@'+api.info['username'].lower()):
                         api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
@@ -1250,6 +1250,14 @@ def run(db,api,outdev):
                         else:
                             db[1].chgItem(str(item['message']['chat']['id']),'notify',tmp[1])
                             api.sendMessage(item['message']['chat']['id'],'日誌群組已成功配置為 <pre>'+tmp[1]+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                    elif item['message']['text'].split(' ')[0].lower() in ('/sqlite3','/sqlite3@'+api.info['username'].lower()):
+                        try:
+                            api.sendMessage(item['message']['chat']['id'],'<pre>'+str(db[0].data.execute(item['message']['text'].split(' ',1)[1]).fetchall())+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                            db[0].data.close()
+                            db[0].data = db[0].db.cursor()
+                        except Exception as e:
+                            print('/sqlite3',e,sep='\t')
+                            api.sendMessage(item['message']['chat']['id'],'SQL query failed.',{'reply_to_message_id':item['message']['message_id']})
                     else:
                         print("WARNING: Global command "+item['message']['text'].split(' ')[0]+" is undefined.")
             ## Global commands end
