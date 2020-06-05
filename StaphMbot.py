@@ -164,8 +164,8 @@ class l10n:
     delWarnSuccess = lambda t,a,r,c: '該條訊息曾於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。警告現已取消。該用戶現有 '+c+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。'
     warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。'
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
-    notifyWarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else (g+"\n"))+"ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '<Multimedia Message>')
-    notifyDelwarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else (g+"\n"))+"ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '<Multimedia Message>')
+    notifyWarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else (g+"\n"))+"ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '&lt;Multimedia Message&gt;')
+    notifyDelwarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else (g+"\n"))+"ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '&lt;Multimedia Message&gt;')
     notifyG11 = lambda t,u,uid,a,m,g: ("" if g is None else (g+"\n"))+"Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+getMsgText(m)
     notifyPunish = lambda p,t,u,uid,g: ("" if g is None else (g+"\n"))+"User "+u+" ("+uid+") has been "+p+" till "+t+"."
     notifyPunishFail = lambda p,t,u,uid,g: ("" if g is None else (g+"\n"))+"User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
@@ -241,7 +241,7 @@ def getNameRep(userObj):
         return '@'+name
 
 def getMsgText(msgObj):
-    return msgObj['text'] if 'text' in msgObj else '<Multimedia Message>'
+    return msgObj['text'] if 'text' in msgObj else '&lt;Multimedia Message&gt;'
 
 def getAdminList(adminList):
     result = {}
@@ -424,7 +424,7 @@ def processItem(message,db,api):
                     except ue.HTTPError:
                         tafData = 'Airport TAF lookup failed. Maybe wrong airport code?'
                 else:
-                    tafData = 'Usage: /taf <ICAO code>'
+                    tafData = 'Usage: <pre>/taf &lt;ICAO code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/metar':
                 tafQuery = message['message']['text'].split(' ',1)
@@ -434,7 +434,7 @@ def processItem(message,db,api):
                     except ue.HTTPError:
                         tafData = 'Airport METAR lookup failed. Maybe wrong airport code?'
                 else:
-                    tafData = 'Usage: /metar <ICAO code>'
+                    tafData = 'Usage: <pre>/metar &lt;ICAO code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
             elif stripText in ('/iataicao','/icaoiata'):
                 tafQuery = message['message']['text'].split(' ',1)
@@ -444,7 +444,7 @@ def processItem(message,db,api):
                     except ue.HTTPError:
                         tafData = 'Airport info lookup failed.'
                 else:
-                    tafData = 'Usage: /icaoiata <ICAO code>|<IATA code>'
+                    tafData = 'Usage: <pre>/icaoiata &lt;ICAO code&gt;|&lt;IATA code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/airportname':
                 tafQuery = message['message']['text'].split(' ',1)
@@ -454,7 +454,7 @@ def processItem(message,db,api):
                     except ue.HTTPError:
                         tafData = 'Airport info lookup failed.'
                 else:
-                    tafData = 'Usage: /airportname <ICAO code>|<IATA code>'
+                    tafData = 'Usage: <pre>/airportname &lt;ICAO code&gt;|&lt;IATA code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/killsticker':
                 if 'reply_to_message' not in message['message'] or 'sticker' not in message['message']['reply_to_message']:
