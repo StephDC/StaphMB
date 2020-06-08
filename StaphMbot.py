@@ -91,7 +91,10 @@ class tgapi:
             delay = self.msgAF[int(target)] + 3 - time.time()
             if delay > 0.5:
                 time.sleep(delay)
-        misc['text'] = text
+        if len(text) > 2048: # Message too long. Trim and send.
+            misc['text'] = text[:2045]+'...'
+        else:
+            misc['text'] = text
         misc['chat_id'] = target
         misc['parse_mode'] = misc['parse_mode'] if 'parse_mode' in misc else 'HTML'
         try:
