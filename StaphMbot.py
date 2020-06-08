@@ -52,6 +52,8 @@ class tgapi:
         if self.info is None:
             raise APIError('API', 'Initialization Self-test Failed')
         self.logOut.writeln("Bot "+self.info["username"]+" connected to the Telegram API.")
+    
+    escape = lambda x:x.replace('&','&amp;').replace('<','&gt;').replace('>','&lt;')
 
     def query(self,met,parameter=None,retry=None):
         'Query Telegram Bot API'
@@ -161,14 +163,14 @@ class l10n:
         self.lang = lang
         print("This class is not ready to be instantiated now. Please don't instantiate and directly use the functions")
     warnSuccess = lambda x,c: '警告成功。該用戶現在共有 '+x+' 個警告。'+(('\n'+c) if (c and c != "None") else '')
-    delWarnSuccess = lambda t,a,r,c: '該條訊息曾於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。警告現已取消。該用戶現有 '+c+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。'
-    warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+r+' 」警告過。'
+    delWarnSuccess = lambda t,a,r,c: '該條訊息曾於 '+t+' 被 '+a+' 以理由「 '+tgapi.escape(r)+' 」警告過。警告現已取消。該用戶現有 '+c+' 個警告。如該用戶已因警告遭致處分，請管理員亦一同處置。'
+    warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+tgapi.escape(r)+' 」警告過。'
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
-    notifyWarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else (g+"\n"))+"ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+r+'\nCurrent Warn #'+c+'\nMessage:\n'+(m if m else '&lt;Multimedia Message&gt;')
-    notifyDelwarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else (g+"\n"))+"ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+r+'\nCurrent Warn #:'+c+'\nMessage:\n' + (m if m else '&lt;Multimedia Message&gt;')
-    notifyG11 = lambda t,u,uid,a,m,g: ("" if g is None else (g+"\n"))+"Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+getMsgText(m)
-    notifyPunish = lambda p,t,u,uid,g: ("" if g is None else (g+"\n"))+"User "+u+" ("+uid+") has been "+p+" till "+t+"."
-    notifyPunishFail = lambda p,t,u,uid,g: ("" if g is None else (g+"\n"))+"User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
+    notifyWarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else tgapi.escape(g+"\n"))+"ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+tgapi.escape(r)+'\nCurrent Warn #'+c+'\nMessage:\n'+tgapi.escape(m if m else '<Multimedia Message>')
+    notifyDelwarn = lambda i,t,u,uid,a,c,m,r,g: tgapi.escape(("" if g is None else tgapi.escape(g+"\n"))+"ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+tgapi.escape(r)+'\nCurrent Warn #:'+c+'\nMessage:\n' + tgapi.escape(m if m else '<Multimedia Message>'))
+    notifyG11 = lambda t,u,uid,a,m,g: ("" if g is None else tgapi.escape(g+"\n"))+"Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+tgapi.escape(getMsgText(m))
+    notifyPunish = lambda p,t,u,uid,g: ("" if g is None else tgapi.escape(g+"\n"))+"User "+u+" ("+uid+") has been "+p+" till "+t+"."
+    notifyPunishFail = lambda p,t,u,uid,g: ("" if g is None else tgapi.escape(g+"\n"))+"User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
 
 def initiateDB(fName,outdev):
     try:
@@ -228,6 +230,7 @@ def getName(uid,gid,api,lookup={}):
     return getNameRep(result['user'])
 
 def getNameRep(userObj):
+    '''Takes a TG User object and returns a HTML encoded User with link'''
     name = ''
     if 'username' in userObj:
         name = userObj['username']
@@ -236,9 +239,9 @@ def getNameRep(userObj):
     else:
         name = userObj['first_name']
     if 'id' in userObj:
-        return '<a href="tg://user?id='+str(userObj['id'])+'">'+name+'</a>'
+        return '<a href="tg://user?id='+str(userObj['id'])+'">'+tgapi.escape(name)+'</a>'
     else:
-        return '@'+name
+        return '@'+tgapi.escape(name)
 
 def getMsgText(msgObj):
     return msgObj['text'] if 'text' in msgObj else '&lt;Multimedia Message&gt;'
@@ -394,7 +397,7 @@ def processItem(message,db,api):
                 stripText=stripText[:-len(api.info['username'])-1]
             stripText = stripText.lower()
             if stripText == '/ping':
-                api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-message['message']['date'])+' seconds!',{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'Hell o\'world! It took '+str(time.time()-message['message']['date'])[:9]+' seconds!',{'reply_to_message_id':message['message']['message_id']})
             if stripText == '/anyone':
                 api.sendMessage(message['message']['chat']['id'],'沒有人，你悲劇了。',{'reply_to_message_id':message['message']['reply_to_message']['message_id'] if 'reply_to_message' in message['message'] else message['message']['message_id']})
                 if 'reply_to_message' in message['message']:
@@ -679,7 +682,7 @@ def processItem(message,db,api):
                         api.query('kickChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['reply_to_message']['from']['id']})
 #                        api.sendMessage(db[1].getItem(str(message['message']['chat']['id'],'notify')),l10n.notifyG11(str(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),message['message']['reply_to_message']))
                         tmp = db[1].getItem(str(message['message']['chat']['id']),'notify').split('|')
-                        api.sendMessage(tmp[0],("" if len(tmp) == 1 else tmp[1]+'\n')+getNameRep(message['message']['from'])+" has killed a #G11 from "+getNameRep(message['message']['reply_to_message']['from'])+"("+ str(message['message']['reply_to_message']['from']['id'])+") with content of\n"+getMsgText(message['message']['reply_to_message']))
+                        api.sendMessage(tmp[0],("" if len(tmp) == 1 else tgapi.escape(tmp[1])+'\n')+getNameRep(message['message']['from'])+" has killed a #G11 from "+getNameRep(message['message']['reply_to_message']['from'])+"("+ str(message['message']['reply_to_message']['from']['id'])+") with content of\n"+getMsgText(message['message']['reply_to_message']))
                         try:
                             api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['reply_to_message']['message_id']})
                         except APIError:
