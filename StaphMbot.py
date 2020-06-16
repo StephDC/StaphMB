@@ -53,7 +53,7 @@ class tgapi:
             raise APIError('API', 'Initialization Self-test Failed')
         self.logOut.writeln("Bot "+self.info["username"]+" connected to the Telegram API.")
     
-    escape = lambda x:x.replace('&','&amp;').replace('<','&gt;').replace('>','&lt;')
+    escape = lambda x:x.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
 
     def query(self,met,parameter=None,retry=None):
         'Query Telegram Bot API'
@@ -170,7 +170,7 @@ class l10n:
     warnedFail = lambda t,a,r: '抱歉，該條訊息已於 '+t+' 被 '+a+' 以理由「 '+tgapi.escape(r)+' 」警告過。'
     epochToISO = lambda x: datetime.datetime.fromtimestamp(x).isoformat()
     notifyWarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else tgapi.escape(g+"\n"))+"ID: "+i+"\nTime: "+t+"\nUser "+u+" ("+uid+") warned by "+a+' with reason:\n'+tgapi.escape(r)+'\nCurrent Warn #'+c+'\nMessage:\n'+tgapi.escape(m if m else '<Multimedia Message>')
-    notifyDelwarn = lambda i,t,u,uid,a,c,m,r,g: tgapi.escape(("" if g is None else tgapi.escape(g+"\n"))+"ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+tgapi.escape(r)+'\nCurrent Warn #:'+c+'\nMessage:\n' + tgapi.escape(m if m else '<Multimedia Message>'))
+    notifyDelwarn = lambda i,t,u,uid,a,c,m,r,g: ("" if g is None else tgapi.escape(g+"\n"))+"ID: "+i+'\nTime: '+t+"\n"+a+" cancelled a warning for user "+u+" ("+uid+") with reason:\n"+tgapi.escape(r)+'\nCurrent Warn #:'+c+'\nMessage:\n' + tgapi.escape(m if m else '<Multimedia Message>')
     notifyG11 = lambda t,u,uid,a,m,g: ("" if g is None else tgapi.escape(g+"\n"))+"Time: "+t+"\nUser "+u+" ("+uid+") killed by "+a+' with reason: #G11\nMessage:\n'+tgapi.escape(getMsgText(m))
     notifyPunish = lambda p,t,u,uid,g: ("" if g is None else tgapi.escape(g+"\n"))+"User "+u+" ("+uid+") has been "+p+" till "+t+"."
     notifyPunishFail = lambda p,t,u,uid,g: ("" if g is None else tgapi.escape(g+"\n"))+"User "+u+" ("+uid+") need to be "+p+" till "+t+", but the operation failed."
