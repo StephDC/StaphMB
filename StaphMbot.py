@@ -1251,13 +1251,17 @@ def run(db,api,outdev):
                             db[1].chgItem(str(item['message']['chat']['id']),'notify',tmp[1])
                             api.sendMessage(item['message']['chat']['id'],'日誌群組已成功配置為 <pre>'+tmp[1]+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
                     elif item['message']['text'].split(' ')[0].lower() in ('/sqlite3','/sqlite3@'+api.info['username'].lower()):
-                        try:
-                            api.sendMessage(item['message']['chat']['id'],'<pre>'+str(db[0].data.execute(item['message']['text'].split(' ',1)[1]).fetchall())+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
-                            db[0].data.close()
-                            db[0].data = db[0].db.cursor()
-                        except Exception as e:
-                            print('/sqlite3',e,sep='\t')
-                            api.sendMessage(item['message']['chat']['id'],'SQL query failed.',{'reply_to_message_id':item['message']['message_id']})
+                        tmp = item['message']['text'].split(' ',1)
+                        if len(tmp) == 1 or not tmp[1]:
+                            api.sendMessage(item['message']['chat']['id'],'Usage: <pre>/sqlite3 &lt;sqlite query&gt;</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                        else:
+                            try:
+                                api.sendMessage(item['message']['chat']['id'],'<pre>'+str(db[0].data.execute(item['message']['text'].split(' ',1)[1]).fetchall())+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
+                                db[0].data.close()
+                                db[0].data = db[0].db.cursor()
+                            except Exception as e:
+                                print('/sqlite3',e,sep='\t')
+                                api.sendMessage(item['message']['chat']['id'],'SQL query failed.',{'reply_to_message_id':item['message']['message_id']})
                     else:
                         print("WARNING: Global command "+item['message']['text'].split(' ')[0]+" is undefined.")
             ## Global commands end
