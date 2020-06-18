@@ -31,6 +31,29 @@ class sqliteDB():
         except sqlite3.OperationalError:
             raise sqliteDBError('no such table - '+dbTable)
 
+    def keys(self):
+        tmp = self.data.execute('select header from "'+self.table+'"').fetchall()
+        result = []
+        for datum in tmp:
+            if datum[0] != 'header':
+                result.append(datum[0])
+        return result
+
+    def __iter__(self):
+        return self.keys().__iter__()
+
+    def __getitem__(self,key):
+        if not self.hasItem(key):
+            raise KeyError(key)
+        tmp = {}
+        data = self.data.execute('select * from "'+self.table+'" where header=?',(key,)).fetchone()
+        for item in self.header[1:]:
+            data = data[1:]
+            tmp[item] = data[0]
+        self.data.close()
+        self.data = self.db.cursor()
+        return tmp
+
     def __str__(self):
         tmpData = self.data.execute('select * from "'+self.table+'"').fetchall()
         result = ''
