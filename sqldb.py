@@ -91,10 +91,10 @@ class sqliteDB():
     def addItem(self,item):
         # If we do not have the item - Add it.
         if not self.hasItem(item[0]):
-            self.data.execute('insert into "'+self.table+'" (header) values ("'+item[0]+'")')
+            self.data.execute('insert into "'+self.table+'" (header) values (?)',(item[0],))
         tmp = item[1:]
         for key in range(len(tmp)):
-            self.data.execute('update "'+self.table+'" set "'+self.header[key+1]+'" = "'+str(tmp[key])+'" where header = "'+item[0]+'"')
+            self.data.execute('update "'+self.table+'" set "'+self.header[key+1]+'" = ? where header = ?',(str(tmp[key]),item[0]))
         self.data.close()
         self.db.commit()
         self.data = self.db.cursor()
