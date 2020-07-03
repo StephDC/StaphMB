@@ -482,7 +482,7 @@ def processCheck(msg,api,db):
 
 def updateDiscussMessage(api,chat_id):
     newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':'申請：'+api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]+[[{'text':'除權：'+api.info['metaDiscussion']['tmpuser'][i],'callback_data':i}] for i in api.info['metaDiscussion']['tmpuser']]
-    api.query('editMessageText',{'chat_id':chat_id,'message_id':api.info['metaDiscussion']['mid'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無')+'\n已允許發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['tmpuser'][i] for i in api.info['metaDiscussion']['tmpuser']]) if api.info['metaDiscussion']['tmpuser'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList}})
+    api.query('editMessageText',{'chat_id':chat_id,'message_id':api.info['metaDiscussion']['mid'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無')+'\n已允許發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['tmpuser'][i] for i in api.info['metaDiscussion']['tmpuser']]) if api.info['metaDiscussion']['tmpuser'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList},'parse_mode':'HTML'})
 
 def processCallback(api,query):
     if 'data' in query and len(query['data']) > 10 and query['data'][:3] == 'qa|':
@@ -502,7 +502,7 @@ def processCallback(api,query):
                                 if item[0]['callback_data'] == query['data']:
                                     suf = item[0]['text']+'\n'
                                     break
-                        api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':query['message']['text']+'\n'+suf+getNameRep(query['from'])+' 回答正確！'},retry=0)
+                        api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':query['message']['text']+'\n'+suf+getNameRep(query['from'])+' 回答正確！','parse_mode':'HTML'},retry=0)
                     except APIError:
                         pass
             elif qu=="Incorrect":
@@ -555,7 +555,7 @@ def processCallback(api,query):
         if query['from']['id'] == int(query['data']):
             api.info['metaDiscussion']['queue'].pop(query['from']['id'])
             newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]
-            api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList}})
+            api.query('editMessageText',{'chat_id':query['message']['chat']['id'],'message_id':query['message']['message_id'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList},'parse_mode':'HTML'})
             api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已從申請發言列表中移除。'},retry=0)
         else:
             qu = api.query('getChatMember',{'chat_id':query['message']['chat']['id'],'user_id':query['from']['id']},retry=0)
