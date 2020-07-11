@@ -520,6 +520,7 @@ def processItem(message,db,api):
                             api.info['lockedChannel'].append(message['message']['chat']['id'])
                         else:
                             api.info['lockedChannel'] = [message['message']['chat']['id']]
+                        api.sendMessage(message['message']['chat']['id'],'本群已禁止新用戶加入。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/unlockgroup':
                 if 'lockedChannel' not in api.info or message['message']['chat']['id'] not in api.info['lockedChannel']:
                     api.sendMessage(message['message']['chat']['id'],'本群並未使用本機器人封鎖新用戶加群。',{"reply_to_message_id":message['message']['message_id']})
