@@ -114,6 +114,13 @@ class tgapi:
         else:
             return False
 
+    def getUserInfo(self,origMsg,uid=None,retry=None):
+        if retry is None:
+            retry = self.retry
+        if uid is None:
+            uid = origMsg['from']['id']
+        return self.query('getChatMember',{'chat_id':origMsg['chat']['id'],'user_id':uid},retry)
+
     def sendAction(self,target,duration,action):
         if action not in ('typing','upload_photo','record_video','upload_video','record_audio','upload_audio','upload_document','find_location','record_video_note','upload_video_note'):
             raise APIError('API','Illegal action '+action)
@@ -500,6 +507,29 @@ def processItem(message,db,api):
                                 api.info['killDice'] = {}
                             api.info['killDice'][message['message']['chat']['id']] = tmp
                             api.sendMessage(message['message']['chat']['id'],"機器人將試圖於發出 "+diceQuery[1]+" 秒後刪除 Dice/Dart。",{'reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/lockgroup':
+                queryBy = api.getUserInfo(message['message'])
+                if queryBy['status'] not in ('creator','administrator'):
+                    api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /lockGroup 禁止新用戶加入本群。",{"reply_to_message_id":message['message']['message_id']})
+                else:
+                    myPerm = api.getUserInfo(message['message'],uid=api.info['id'])
+                    if myPerm['status'] not in ('creator','administrator') or (myPerm['status'] == 'administrator' and not (myPerm['can_restrict_members'] and myPerm['can_delete_messages'])):
+                        api.sendMessage(message['message']['chat']['id'],"機器人試圖封鎖本群，卻流下了沒有權力的淚水。",{"reply_to_message_id":message['message']['message_id']})
+                    else:
+                        if 'lockedChannel' in api.info:
+                            api.info['lockedChannel'].append(message['message']['chat']['id'])
+                        else:
+                            api.info['lockedChannel'] = [message['message']['chat']['id']]
+            elif stripText == '/unlockgroup':
+                if 'lockedChannel' not in api.info or message['message']['chat']['id'] not in api.info['lockedChannel']:
+                    api.sendMessage(message['message']['chat']['id'],'本群並未使用本機器人封鎖新用戶加群。',{"reply_to_message_id":message['message']['message_id']})
+                else:
+                    queryBy = api.getUserInfo(message['message'])
+                    if queryBy['status'] not in ('creator','administrator'):
+                        api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /unlockGroup 重新允許新用戶加入本群。",{"reply_to_message_id":message['message']['message_id']})
+                    else:
+                        api.info['lockedChannel'].remove(message['message']['chat']['id'])
+                        api.sendMessage(message['message']['chat']['id'],"已重新允許新用戶加入本群。",{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/poem':
                 api.sendMessage(message['message']['chat']['id'],ur.urlopen('http://localhost/cgi-bin/poem.cgi').read().decode('UTF-8').strip(),{'reply_to_message_id':message['message']['message_id']})
             ##
@@ -767,6 +797,16 @@ def processItem(message,db,api):
                     except APIError:
                         api.logOut.writeln("Group blacklisted message failed to be sent")
                     api.query("leaveChat",{"chat_id":message['message']['chat']['id']})
+            elif 'lockedChannel' in api.info and message['message']['chat']['id'] in api.info['lockedChannel']:
+                try:
+                    api.query('kickChatMember',{'chat_id':message['message']['chat']['id'],'user_id':newMember['id'],'until_date':int(time.time()+60)},retry=0)
+                except APIError:
+                    pass
+        if 'lockedChannel' in api.info and message['message']['chat']['id'] in api.info['lockedChannel'] and 'message_id' in message['message']:
+            try:
+                api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=0)
+            except APIError:
+                pass
     db[0].addItem(['lasttime',message['message']['date']])
 
 def updateWorker(dbn,outdev,api,stdin,happyEnd):
@@ -788,7 +828,7 @@ def run(db,api,outdev):
     killSig = queue.Queue()
     msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
     msgThr.start()
-    botGroup = {'default':(msgQueue,killSig,msgThr)}
+    botGroup = {'default':(msgQueue,killSig,msgThr,time.time())}
     for item in range(len(data)):
         if data[item]['update_id'] == resPos:
             data = data[item+1:]
@@ -811,19 +851,21 @@ def run(db,api,outdev):
                     killSig = queue.Queue()
                     msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
                     msgThr.start()
-                    botGroup[queueTarget] = (msgQueue,killSig,msgThr)
+                    botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
             ## Global commands
                 if 'message' in item and 'text' in item['message'] and item['message']['text'].lower() in ('/groupthread','/groupthread'+api.info['username'].lower()):
                     api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
             ## Global commands end
                 else:
                     botGroup[queueTarget][0].put(item)
+                    botGroup[queueTarget][3] = time.time()
             api.clearDelayQuery()
             ## Garbage Collection
+            gcDelay = 300.0
             gc = []
             for item in botGroup:
                 if item != 'default':
-                    if botGroup[item][0].empty():
+                    if botGroup[item][0].empty() and time.time() > botGroup[item][3] + gcDelay:
                         botGroup[item][1].put(True)
                         botGroup[item][2].join()
                         gc.append(item)
