@@ -808,6 +808,11 @@ def processItem(message,db,api):
                 api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=0)
             except APIError:
                 pass
+    elif 'left_chat_participant' in message['message'] and message['message']['from']['id'] == api.info['id']:
+        try:
+            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=0)
+        except APIError:
+            pass
     db[0].addItem(['lasttime',message['message']['date']])
 
 def updateWorker(dbn,outdev,api,stdin,happyEnd):
@@ -829,7 +834,7 @@ def run(db,api,outdev):
     killSig = queue.Queue()
     msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
     msgThr.start()
-    botGroup = {'default':(msgQueue,killSig,msgThr,time.time())}
+    botGroup = {'default':[msgQueue,killSig,msgThr,time.time()]}
     for item in range(len(data)):
         if data[item]['update_id'] == resPos:
             data = data[item+1:]
