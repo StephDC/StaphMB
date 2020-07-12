@@ -415,6 +415,12 @@ def processItem(message,db,api):
                         api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
                     except APIError:
                         pass
+            if stripText == '/hr':
+                api.sendMessage(message['message']['chat']['id'],'-----我是可愛的分割線-----')
+                try:
+                    api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
+                except APIError:
+                    pass
             ## EASTER EGGS
             elif stripText == '/stupid_bluedeck':
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
