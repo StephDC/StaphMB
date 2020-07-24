@@ -482,7 +482,7 @@ def processCheck(msg,api,db):
 
 def updateDiscussMessage(api,chat_id):
     newButtonList = [[{'text':'我要發言','callback_data':'speak'}]]+[[{'text':'申請：'+api.info['metaDiscussion']['queue'][i],'callback_data':i}] for i in api.info['metaDiscussion']['queue']]+[[{'text':'除權：'+api.info['metaDiscussion']['tmpuser'][i],'callback_data':i}] for i in api.info['metaDiscussion']['tmpuser']]
-    api.query('editMessageText',{'chat_id':chat_id,'message_id':api.info['metaDiscussion']['mid'],'text':'希望發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['queue'][i] for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無')+'\n已允許發言的用戶列表：\n'+('\n'.join([api.info['metaDiscussion']['tmpuser'][i] for i in api.info['metaDiscussion']['tmpuser']]) if api.info['metaDiscussion']['tmpuser'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList},'parse_mode':'HTML'})
+    api.query('editMessageText',{'chat_id':chat_id,'message_id':api.info['metaDiscussion']['mid'],'text':'希望發言的用戶列表：\n'+('\n'.join(['<a href="tg://user?id='+str(i)+'">'+api.info['metaDiscussion']['queue'][i]+'</a>' for i in api.info['metaDiscussion']['queue']]) if api.info['metaDiscussion']['queue'] else '暫無')+'\n已允許發言的用戶列表：\n'+('\n'.join(['<a href="tg://user?id='+str(i)+'">'+api.info['metaDiscussion']['tmpuser'][i]+'</a>' for i in api.info['metaDiscussion']['tmpuser']]) if api.info['metaDiscussion']['tmpuser'] else '暫無'),'reply_markup':{'inline_keyboard':newButtonList},'parse_mode':'HTML'})
 
 def processCallback(api,query):
     if 'data' in query and len(query['data']) > 10 and query['data'][:3] == 'qa|':
@@ -538,7 +538,7 @@ def processCallback(api,query):
                     api.query('promoteChatMember',newPerm,retry=0)
                     api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您成為管理員了。'},retry=0)
                     api.delayQuery(1,'setChatAdministratorCustomTitle',{'chat_id':newPerm['chat_id'],'user_id':newPerm['user_id'],'custom_title':'臨—'+api.info['metaAdminList'][query['from']['id']][:3]})
-                    api.info['metaDiscussion']['tmpadmin'][query['from']['id']] = getNameRep(query['from'])
+                    api.info['metaDiscussion']['tmpadmin'][query['from']['id']] = getNameRep(query['from'],form="text")
                 except APIError:
                     api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'我無法於此處讓您成為管理員。'},retry=0)
         else:
@@ -548,7 +548,7 @@ def processCallback(api,query):
             elif qu['status'] in ('creator','administrator'):
                 api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已經是管理員了。'},retry=0)
             else:
-                api.info['metaDiscussion']['queue'][query['from']['id']] = getNameRep(query['from'])
+                api.info['metaDiscussion']['queue'][query['from']['id']] = getNameRep(query['from'],form="text")
                 api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已加入申請發言列表。'},retry=0)
                 updateDiscussMessage(api,query['message']['chat']['id'])
     elif int(query['data']) in api.info['metaDiscussion']['queue']:
