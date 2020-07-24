@@ -239,7 +239,7 @@ def getName(uid,gid,api,lookup={}):
         return 'a former member of this group'
     return getNameRep(result['user'])
 
-def getNameRep(userObj):
+def getNameRep(userObj,form="html"):
     '''Takes a TG User object and returns a HTML encoded User with link'''
     name = ''
     if 'username' in userObj:
@@ -249,7 +249,10 @@ def getNameRep(userObj):
     else:
         name = userObj['first_name']
     if 'id' in userObj:
-        return '<a href="tg://user?id='+str(userObj['id'])+'">'+tgapi.escape(name)+'</a>'
+        if form == "html":
+            return '<a href="tg://user?id='+str(userObj['id'])+'">'+tgapi.escape(name)+'</a>'
+        elif form == "text":
+            return name
     else:
         return '@'+tgapi.escape(name)
 
