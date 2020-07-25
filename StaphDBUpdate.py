@@ -46,8 +46,25 @@ def update4(db):
     db[1].data.execute("alter table 'group' add 'bansticker'")
     db[1].data.execute("update 'group' set bansticker = ''")
     db[1].data.execute("update 'group' set bansticker = 'bansticker' where header='header'")
+    db[1].updateDB()
     db[0].addItem(['dbver','1.5'])
     print('DB version updated to 1.5')
+
+def update5(db):
+    if db[0].getItem('dbver','value') != '1.5':
+        raise TypeError("Wrong Database Version")
+    for item in db[1]:
+        if item != 'default':
+            if db[1].getItem(item,'bansticker') != '':
+                tmp = db[1].getItem(item,'bansticker').split('|')
+                tmp = '|'.join(['set:'+i for i in tmp])
+                db[1].chgItem(item,'bansticker',tmp)
+    db[1].data.execute("Alter Table 'group' add 'moderator'")
+    db[1].data.execute("Update 'group' set moderator = ''")
+    db[1].data.execute("update 'group' set moderator = 'moderator' where header='header'")
+    db[1].updateDB()
+    db[0].addItem(['dbver','1.6'])
+    print('DB version updated to 1.6')
 
 def main(args):
     tmp = sqldb.sqliteDB(args[0],'config')
@@ -64,6 +81,8 @@ def main(args):
         db.append(sqldb.sqliteDB(tmp,'auth'))
     if db[0].getItem('dbver','value') == '1.4':
         update4(db)
+    if db[0].getItem('dbver','value') == '1.5':
+        update5(db)
     print("Your database is up-to-date.")
 
 if __name__ == '__main__':
