@@ -67,6 +67,11 @@ def update5(db):
     print('DB version updated to 1.6')
 
 def main(args):
+    if len(args) == 0 or args[0] in ('-h','--help','-?'):
+        print(sys.argv[0]+' - Update StaphMB DB')
+        print('Synopsis:')
+        print('\t'+sys.argv[0]+' init.db')
+        exit()
     tmp = sqldb.sqliteDB(args[0],'config')
     db = [tmp,sqldb.sqliteDB(tmp,'group'),sqldb.sqliteDB(tmp,'warn')]
     if db[0].getItem('dbver','value') == '1.0':
