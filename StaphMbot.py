@@ -187,7 +187,7 @@ def initiateDB(fName,outdev):
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.5':
+    if conf.getItem('dbver','value') != '1.6':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -396,7 +396,7 @@ def processItem(message,db,api):
         except sqldb.sqliteDBError:
             pass
         else:
-            if message['message']['sticker']['set_name'] in tmp:
+            if 'set:'+message['message']['sticker']['set_name'] in tmp:
                 try:
                     api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
                     api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' 發送的一個 Sticker 由於被禁止於此群使用，已被刪除。')
@@ -489,8 +489,8 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /killsticker 於本群組禁止使用該 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
                     else:
                         tmp = db[1].getItem(str(message['message']['chat']['id']),'bansticker')
-                        if message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
-                            tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+message['message']['reply_to_message']['sticker']['set_name'])
+                        if 'set:'+message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
+                            tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+'set:'+message['message']['reply_to_message']['sticker']['set_name'])
                         api.sendMessage(message['message']['chat']['id'],"該 Sticker 所屬的 Sticker set "+message['message']['reply_to_message']['sticker']['set_name']+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/killdice':
                 queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
@@ -518,7 +518,7 @@ def processItem(message,db,api):
                             api.sendMessage(message['message']['chat']['id'],"機器人將試圖於發出 "+diceQuery[1]+" 秒後刪除 Dice/Dart。",{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/lockgroup':
                 queryBy = api.getUserInfo(message['message'])
-                if queryBy['status'] not in ('creator','administrator'):
+                if queryBy['status'] not in ('creator','administrator') or (queryBy['status'] == 'administrator' and not queryBy['can_promote_members']):
                     api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /lockGroup 禁止新用戶加入本群。",{"reply_to_message_id":message['message']['message_id']})
                 else:
                     myPerm = api.getUserInfo(message['message'],uid=api.info['id'])
@@ -535,7 +535,7 @@ def processItem(message,db,api):
                     api.sendMessage(message['message']['chat']['id'],'本群並未使用本機器人封鎖新用戶加群。',{"reply_to_message_id":message['message']['message_id']})
                 else:
                     queryBy = api.getUserInfo(message['message'])
-                    if queryBy['status'] not in ('creator','administrator'):
+                    if queryBy['status'] not in ('creator','administrator') or (queryBy['status'] == 'administrator' and not queryBy['can_promote_members']):
                         api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /unlockGroup 重新允許新用戶加入本群。",{"reply_to_message_id":message['message']['message_id']})
                     else:
                         api.info['lockedChannel'].remove(message['message']['chat']['id'])
@@ -655,8 +655,11 @@ def processItem(message,db,api):
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
+                    ## Need to remove adminList part
                     adminList = getAdminList(api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']}))
-                    if message['message']['from']['id'] not in adminList:
+                    ## Kept for compatibility
+                    op = api.getUserInfo(message['message'])
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem('moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #WARN 警告其他用戶。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被警告的訊息。',{'reply_to_message_id':message['message']['message_id']})
@@ -687,8 +690,10 @@ def processItem(message,db,api):
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
+                    op = api.getUserInfo(message['message'])
+                    ## Kept for compatibility
                     adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
-                    if message['message']['from']['id'] not in adminList:
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem('moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #DELWARN 解除對其他用戶的警告。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆被警告用戶發送的原始訊息。',{'reply_to_message_id':message['message']['message_id']})
@@ -709,8 +714,10 @@ def processItem(message,db,api):
                 elif db[1].getItem(str(message['message']['chat']['id']),'notify') == 'None':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，該功能僅在已配置群組日誌的群可用。您可以直接使用濫權三連（刪除消息，封禁用戶，舉報用戶）處理 #G11。',{'reply_to_message_id':message['message']['message_id']})
                 else:
+                    op = api.getUserInfo(message['message'])
+                    ## Kept for compatibility
                     adminList = getAdminList(api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']}))
-                    if message['message']['from']['id'] not in adminList:
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem('moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #G11 快速踢出其他用戶。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被處理的訊息。',{'reply_to_message_id':message['message']['message_id']})
@@ -736,7 +743,7 @@ def processItem(message,db,api):
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
                 else:
-                    reqUser = api.query('getChatMember',{'chat_id':message['message']['chat']['id'],'user_id':message['message']['from']['id']})
+                    reqUser = api.getUserInfo(message['message'])
                     if (reqUser['status'] != 'creator') and not (('can_promote_members' in reqUser) and reqUser['can_promote_members']):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #SETWARNRULE 修改警告懲罰規則。',{'reply_to_message_id':message['message']['message_id']})
                     else:
