@@ -659,7 +659,7 @@ def processItem(message,db,api):
                     adminList = getAdminList(api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']}))
                     ## Kept for compatibility
                     op = api.getUserInfo(message['message'])
-                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem('moderator').split('|'):
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #WARN 警告其他用戶。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被警告的訊息。',{'reply_to_message_id':message['message']['message_id']})
@@ -668,9 +668,10 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],l10n.warnedFail(l10n.epochToISO(int(warnInfo[0])),getName(warnInfo[1],message['message']['chat']['id'],api,adminList),warnInfo[2]),{'reply_to_message_id':message['message']['message_id']})
                     else:
                         warnInfo = [int(time.time()),message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'],message['message']['reply_to_message']['message_id'],message['message']['from']['id'],message['message']['text'][5:].strip()]
+                        dest = api.getUserInfo(message['message']['reply_to_message'])
                         if not warnInfo[-1]:
                             api.sendMessage(message['message']['chat']['id'],'用法錯誤：請提供警告理由，使對方明白何處做錯。',{'reply_to_message_id':message['message']['message_id']})
-                        elif warnInfo[2] in adminList:
+                        elif dest['status'] in ('creator','administrator') or str(warnInfo[2]) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
                             api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告管理員，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                         elif warnInfo[2] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
                             api.sendMessage(message['message']['chat']['id'],'竟敢試圖警告機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
@@ -693,7 +694,7 @@ def processItem(message,db,api):
                     op = api.getUserInfo(message['message'])
                     ## Kept for compatibility
                     adminList = {i['user']['id']:getNameRep(i['user']) for i in api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']})}
-                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem('moderator').split('|'):
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #DELWARN 解除對其他用戶的警告。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆被警告用戶發送的原始訊息。',{'reply_to_message_id':message['message']['message_id']})
@@ -717,11 +718,11 @@ def processItem(message,db,api):
                     op = api.getUserInfo(message['message'])
                     ## Kept for compatibility
                     adminList = getAdminList(api.query('getChatAdministrators',{'chat_id':message['message']['chat']['id']}))
-                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem('moderator').split('|'):
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #G11 快速踢出其他用戶。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被處理的訊息。',{'reply_to_message_id':message['message']['message_id']})
-                    elif message['message']['reply_to_message']['from']['id'] in adminList:
+                    elif api.getUserInfo(message['message']['reply_to_message'])['status'] in ('creator','administrator') or str(message['message']['reply_to_message']['from']['id']) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
                         api.sendMessage(message['message']['chat']['id'],'竟敢試圖說管理員有 #G11 ，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                     elif message['message']['reply_to_message']['from']['id'] == api.info['id'] or message['message']['reply_to_message']['from']['is_bot']:
                         api.sendMessage(message['message']['chat']['id'],'竟敢試圖 #G11 機器人，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
