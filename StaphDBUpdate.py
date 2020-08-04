@@ -66,6 +66,15 @@ def update5(db):
     db[0].addItem(['dbver','1.6'])
     print('DB version updated to 1.6')
 
+def update6(db):
+    if db[0].getItem('dbver','value') != '1.6':
+        raise TypeError("Wrong Database Version")
+    db[0].data.execute('CREATE TABLE imgid (header text, fid text, atime text)')
+    db[0].data.execute("INSERT INTO imgid VALUES('header','fid','atime')")
+    db[0].updateDB()
+    db[0].addItem(['dbver','1.7'])
+    print('DB version updated to 1.7')
+
 def main(args):
     if len(args) == 0 or args[0] in ('-h','--help','-?'):
         print(sys.argv[0]+' - Update StaphMB DB')
@@ -88,6 +97,9 @@ def main(args):
         update4(db)
     if db[0].getItem('dbver','value') == '1.5':
         update5(db)
+    if db[0].getItem('dbver','value') == '1.6':
+        update6(db)
+        db.append(sqldb.sqliteDB(tmp,'imgid'))
     print("Your database is up-to-date.")
 
 if __name__ == '__main__':

@@ -187,7 +187,7 @@ def initiateDB(fName,outdev):
         conf = sqldb.sqliteDB(fName,'config')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted configuration table')
-    if conf.getItem('dbver','value') != '1.6':
+    if conf.getItem('dbver','value') != '1.7':
         raise APIError('DB','Database schema version is incompatible')
     try:
         group = sqldb.sqliteDB(conf.db,'group')
@@ -205,8 +205,10 @@ def initiateDB(fName,outdev):
         auth = sqldb.sqliteDB(conf.db,'auth')
     except sqldb.sqliteDBError:
         raise APIError('DB','Corrupted auth table')
+    try:
+        imgid = sqldb.sqliteDB(conf.db,'imgid')
     outdev.writeln('DB File '+fName+' loaded.')
-    return (conf,group,warn,admin,auth)
+    return (conf,group,warn,admin,auth,imgid)
 
 def addGroup(gid,db,outdev):
     if not db[1].hasItem(str(gid)):
@@ -494,6 +496,7 @@ def processItem(message,db,api):
                             tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+'set:'+message['message']['reply_to_message']['sticker']['set_name'])
                         elif stripText == '/killsticker' and 'uid:'+message['message']['reply_to_message']['sticker']['file_unique_id'] not in tmp.split('|'):
                             tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+'uid:'+message['message']['reply_to_message']['sticker']['file_unique_id'])
+                            db[5].addItem([message['message']['reply_to_message']['sticker']['file_unique_id'],message['message']['reply_to_message']['sticker']['file_id'],str(int(time.time()))])
                         api.sendMessage(message['message']['chat']['id'],"該 Sticker"+((setSuffix+" "+message['message']['reply_to_message']['sticker']['set_name'])if setSuffix else '')+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/killdice':
                 queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
