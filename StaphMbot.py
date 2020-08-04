@@ -207,6 +207,8 @@ def initiateDB(fName,outdev):
         raise APIError('DB','Corrupted auth table')
     try:
         imgid = sqldb.sqliteDB(conf.db,'imgid')
+    except sqldb.sqliteDBError:
+        raise APIError('DB','Corrupted imgid table')
     outdev.writeln('DB File '+fName+' loaded.')
     return (conf,group,warn,admin,auth,imgid)
 
