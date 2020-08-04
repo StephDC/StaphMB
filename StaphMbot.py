@@ -390,13 +390,13 @@ def processItem(message,db,api):
     # KillDice
     if 'dice' in message['message'] and 'killDice' in api.info and message['message']['chat']['id'] in api.info['killDice']:
         api.delayQuery(api.info['killDice'][message['message']['chat']['id']],'deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
-    if 'sticker' in message['message'] and 'set_name' in message['message']['sticker']:
+    if 'sticker' in message['message']:
         try:
             tmp = db[1].getItem(str(message['message']['chat']['id']),'bansticker').split('|')
         except sqldb.sqliteDBError:
             pass
         else:
-            if 'set:'+message['message']['sticker']['set_name'] in tmp:
+            if ('uid:'+message['message']['sticker']['file_unique_id'] in tmp) or ('set_name' in message['message']['sticker'] and 'set:'+message['message']['sticker']['set_name'] in tmp):
                 try:
                     api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=1)
                     api.sendMessage(message['message']['chat']['id'],getNameRep(message['message']['from'])+' 發送的一個 Sticker 由於被禁止於此群使用，已被刪除。')
@@ -478,20 +478,23 @@ def processItem(message,db,api):
                 else:
                     tafData = 'Usage: <pre>/airportname &lt;ICAO code&gt;|&lt;IATA code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
-            elif stripText == '/killsticker':
+            elif stripText in ('/killsticker','/killstickerset'):
+                setSuffix = ' 所屬的 Sticker set' if stripText == '/killstickerset' else ''
                 if 'reply_to_message' not in message['message'] or 'sticker' not in message['message']['reply_to_message']:
-                    api.sendMessage(message['message']['chat']['id'],"用法：使用 /killsticker 回覆 Sticker 以禁用該 Sticker 所屬的 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
-                elif 'set_name' not in message['message']['reply_to_message']['sticker'] or '|' in message['message']['reply_to_message']['sticker']['set_name']:
+                    api.sendMessage(message['message']['chat']['id'],"用法：使用 "+stripText+" 回覆 Sticker 以禁用該 Sticker"+setSuffix+"。",{"reply_to_message_id":message['message']['message_id']})
+                elif stripText == '/killstickerset' and ('set_name' not in message['message']['reply_to_message']['sticker'] or '|' in message['message']['reply_to_message']['sticker']['set_name']):
                     api.sendMessage(message['message']['chat']['id'],"抱歉，機器人無法禁用該 Sticker 所屬的 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
                 else:
                     queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
                     if queryBy['status'] not in ('creator','administrator'):
-                        api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 /killsticker 於本群組禁止使用該 Sticker set。",{"reply_to_message_id":message['message']['message_id']})
+                        api.sendMessage(message['message']['chat']['id'],"抱歉，僅有濫權管理員方可使用 "+stripText+" 於本群組禁止使用該 Sticker"+setSuffix+"。",{"reply_to_message_id":message['message']['message_id']})
                     else:
                         tmp = db[1].getItem(str(message['message']['chat']['id']),'bansticker')
-                        if 'set:'+message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
+                        if stripText == '/killstickerset' and 'set:'+message['message']['reply_to_message']['sticker']['set_name'] not in tmp.split('|'):
                             tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+'set:'+message['message']['reply_to_message']['sticker']['set_name'])
-                        api.sendMessage(message['message']['chat']['id'],"該 Sticker 所屬的 Sticker set "+message['message']['reply_to_message']['sticker']['set_name']+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
+                        elif stripText == '/killsticker' and 'uid:'+message['message']['reply_to_message']['sticker']['file_unique_id'] not in tmp.split('|'):
+                            tmp = db[1].chgItem(str(message['message']['chat']['id']),'bansticker',tmp+('|' if tmp else '')+'uid:'+message['message']['reply_to_message']['sticker']['file_unique_id'])
+                        api.sendMessage(message['message']['chat']['id'],"該 Sticker"+((setSuffix+" "+message['message']['reply_to_message']['sticker']['set_name'])if setSuffix else '')+' 已被禁用。',{"reply_to_message_id":message['message']['message_id']})
             elif stripText == '/killdice':
                 queryBy = api.query("getChatMember",{"chat_id":message['message']['chat']['id'],"user_id":message['message']['from']['id']})
                 if queryBy['status'] not in ('creator','administrator'):
@@ -551,6 +554,21 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
                 api.sendMessage(message['message']['chat']['id'],'Uptime:\n<pre>'+subprocess.check_output('uptime').decode().strip()+'</pre>\nThread: '+str(api.clearDelayQuery()),{'parse_mode':'HTML','reply_to_message_id':message['message']['message_id']})
+            elif stripText == '/imginfo':
+                if 'reply_to_message' in message['message'] and ('sticker' in message['message']['reply_to_message'] or 'photo' in message['message']['reply_to_message']):
+                    t = 'System Error'
+                    if 'sticker' in message['message']['reply_to_message']:
+#                        t = json.dumps(message['message']['reply_to_message']['sticker'])
+                        t = 'Set name: '+message['message']['reply_to_message']['sticker']['set_name'] if 'set_name' in message['message']['reply_to_message']['sticker'] else 'Not found'
+                        t += '\nFile ID: <code>'+message['message']['reply_to_message']['sticker']['file_id']
+                        t += '</code>\nUnique ID: <code>'+message['message']['reply_to_message']['sticker']['file_unique_id']+'</code>'
+                    elif 'photo' in message['message']['reply_to_message']:
+#                        t = json.dumps(message['message']['reply_to_message']['photo'][0])
+                        t = 'File ID: <code>'+message['message']['reply_to_message']['photo'][0]['file_id']
+                        t += '</code>\nUnique ID: <code>'+message['message']['reply_to_message']['photo'][0]['file_unique_id']+'</code>'
+                    api.sendMessage(message['message']['chat']['id'],'Here are the image info...\n'+t,{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    api.sendMessage(message['message']['chat']['id'],'Usage: reply to the image/sticker with /imginfo command.',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/freedb':
                 for item in db:
                     item.updateDB()
