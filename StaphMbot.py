@@ -732,6 +732,29 @@ def processItem(message,db,api):
                         tmp = db[1].getItem(str(message['message']['chat']['id']),'notify').split('|')
                         if tmp[0] != 'None':
                             api.sendMessage(tmp[0],l10n.notifyDelwarn(warnInfo[-1],l10n.epochToISO(int(time.time())),getNameRep(message['message']['reply_to_message']['from']),str(message['message']['reply_to_message']['from']['id']),getNameRep(message['message']['from']),str(countWarn(db,message['message']['chat']['id'],message['message']['reply_to_message']['from']['id'])),message['message']['reply_to_message']['text'] if 'text' in message['message']['reply_to_message'] else None,message['message']['text'][8:].strip(),None if len(tmp) == 1 else tmp[1]))
+            elif len(message['message']['text'])>6 and message['message']['text'][1:7].lower() == 'delmsg':
+                if message['message']['chat']['type']!='supergroup':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
+                elif db[1].getItem(str(message['message']['chat']['id']),'notify') == 'None':
+                    api.sendMessage(message['message']['chat']['id'],'抱歉，該功能僅在已配置群組日誌的群可用。',{'reply_to_message_id':message['message']['message_id']})
+                else:
+                    op = api.getUserInfo(message['message'])
+                    if op['status'] not in ('creator','administrator') and str(message['message']['from']['id']) not in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
+                        api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #delmsg 刪除其他用戶的消息。',{'reply_to_message_id':message['message']['message_id']})
+                    elif 'reply_to_message' not in message['message']:
+                        api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被處理的訊息。',{'reply_to_message_id':message['message']['message_id']})
+                    elif api.getUserInfo(message['message']['reply_to_message'])['status'] in ('creator','administrator') or str(message['message']['reply_to_message']['from']['id']) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
+                        api.sendMessage(message['message']['chat']['id'],'竟敢試圖刪管理員的消息，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
+                    elif not canPunish(api,message['message']['chat']['id']):
+                        api.sendMessage(message['message']['chat']['id'],'雖然很想處理掉這條消息，然而本機器人流下了沒有權利的淚水。',{'reply_to_message_id':message['message']['message_id']})
+                    else:
+                        try:
+                            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['reply_to_message']['message_id']})
+                            tmp = db[1].getItem(str(message['message']['chat']['id']),'notify').split('|')
+                            api.sendMessage(tmp[0],("" if len(tmp) == 1 else tgapi.escape(tmp[1])+'\n')+getNameRep(message['message']['from'])+" has deleted a message from "+getNameRep(message['message']['reply_to_message']['from'])+"("+ str(message['message']['reply_to_message']['from']['id'])+") with content of\n"+getMsgText(message['message']['reply_to_message']))
+                            api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']})
+                        except APIError:
+                            api.sendMessage(message['message']['chat']['id'],'機器人似乎在試圖刪除該消息時遇到了一些困難。',{'reply_to_message_id':message['message']['message_id']})
             elif len(message['message']['text'])>3 and message['message']['text'][1:4].lower() == 'g11':
                 if message['message']['chat']['type']!='supergroup':
                     api.sendMessage(message['message']['chat']['id'],'抱歉，警告功能僅在超級群組有效。',{'reply_to_message_id':message['message']['message_id']})
