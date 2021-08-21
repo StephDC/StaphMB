@@ -552,11 +552,11 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],ur.urlopen('http://localhost/cgi-bin/poem.cgi').read().decode('UTF-8').strip(),{'reply_to_message_id':message['message']['message_id']})
             ##
             elif stripText == '/groupid':
-                api.sendMessage(message['message']['chat']['id'],'Group ID: '+str(message['message']['chat']['id']),{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'Group ID: <code>'+str(message['message']['chat']['id'])+'</code>',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == "/userid":
-                api.sendMessage(message['message']['chat']['id'],'User ID: '+str(message['message']['reply_to_message']['forward_from']['id'] if ('reply_to_message' in message['message'] and 'forward_from' in message['message']['reply_to_message']) else message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['from']['id']),{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'User ID: <code>'+str(message['message']['reply_to_message']['forward_from']['id'] if ('reply_to_message' in message['message'] and 'forward_from' in message['message']['reply_to_message']) else message['message']['reply_to_message']['from']['id'] if 'reply_to_message' in message['message'] else message['message']['from']['id'])+'</code>',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/lastid':
-                api.sendMessage(message['message']['chat']['id'],'Last Message ID: '+str(message['update_id']),{'reply_to_message_id':message['message']['message_id']})
+                api.sendMessage(message['message']['chat']['id'],'Last Message ID: <code>'+str(message['update_id'])+'</code>',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/uptime':
                 api.sendMessage(message['message']['chat']['id'],'Uptime:\n<pre>'+subprocess.check_output('uptime').decode().strip()+'</pre>\nThread: '+str(api.clearDelayQuery()),{'parse_mode':'HTML','reply_to_message_id':message['message']['message_id']})
             elif stripText == '/imginfo':
