@@ -1062,7 +1062,7 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #delmsg 刪除其他用戶的消息。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被處理的訊息。',{'reply_to_message_id':message['message']['message_id']})
-                    elif api.getUserInfo(message['message']['reply_to_message'])['status'] in ('creator','administrator') or str(message['message']['reply_to_message']['from']['id']) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
+                    elif (api.getUserInfo(message['message']['reply_to_message'])['status'] in ('creator','administrator') or str(message['message']['reply_to_message']['from']['id']) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|')) and not message['message']['reply_to_message']['from']['is_bot']:
                         api.sendMessage(message['message']['chat']['id'],'竟敢試圖刪管理員的消息，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                     elif not canPunish(api,message['message']['chat']['id']):
                         api.sendMessage(message['message']['chat']['id'],'雖然很想處理掉這條消息，然而本機器人流下了沒有權利的淚水。',{'reply_to_message_id':message['message']['message_id']})
