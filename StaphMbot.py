@@ -591,7 +591,7 @@ def processCallback(api,query):
                 api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'撤銷您的發言權失敗了。'},retry=0)
         else:
             qu = api.query('getChatMember',{'chat_id':query['message']['chat']['id'],'user_id':query['from']['id']},retry=0)
-            if qu['status'] == 'creator' or (qu['status'] == 'administrator' and 'can_promote_members' in qu and qu['can_promote_members']):
+            if qu['status'] == 'creator' or (qu['status'] == 'administrator' and 'can_restrict_members' in qu and qu['can_restrict_members']):
                 try:
                     api.query('promoteChatMember',{'chat_id':query['message']['chat']['id'],'user_id':uid,'can_delete_messages':False,'can_change_info':False,'can_restrict_members':False,'can_invite_users':False,'can_pin_messages':False,'can_promote_members':False})
                     api.query('answerCallbackQuery',{'callback_query_id':query['id'],'text':'您已撤銷 '+api.info['metaDiscussion']['tmpuser'].pop(uid)+' 的發言權。'},retry=0)
