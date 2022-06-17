@@ -885,29 +885,37 @@ def run(db,api,outdev):
         db[0].addItem(['lastid',item['update_id']])
     api.logOut.writeln('All pending messages processed.')
     ## Start default thread for non-messages
+    notProcessed = []
+    maxConcurrentGroup = 10
     while True:
         try:
             time.sleep(2) #Max frequency 30 messages/group
-            data = api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
+            data = notProcessed + api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
+            notProcessed = []
             for item in data:
+                tooBusy = False
                 db[0].addItem(['lastid',item['update_id']])
                 queueTarget = 'default' if 'message' not in item else item['message']['chat']['id']
                 if queueTarget not in botGroup:
-                    msgQueue = queue.Queue()
-                    killSig = queue.Queue()
-                    msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
-                    msgThr.start()
-                    botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
+                    if len(botGroup) < maxConcurrentGroup:
+                        msgQueue = queue.Queue()
+                        killSig = queue.Queue()
+                        msgThr = threading.Thread(target=updateWorker,args=(db[0].filename,outdev,api,msgQueue,killSig))
+                        msgThr.start()
+                        botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
+                    else:
+                        notProcessed.append(data)
+                        tooBusy = True
             ## Global commands
                 if 'message' in item and 'text' in item['message'] and item['message']['text'].lower() in ('/groupthread','/groupthread'+api.info['username'].lower()):
                     api.sendMessage(item['message']['chat']['id'],'<pre>'+'\n'.join([str(i)+'('+str(botGroup[i][2].native_id)+')\t'+str(botGroup[i][0].qsize()) for i in botGroup])+'</pre>',{'parse_mode':'HTML','reply_to_message_id':item['message']['message_id']})
             ## Global commands end
-                else:
+                elif not tooBusy:
                     botGroup[queueTarget][0].put(item)
                     botGroup[queueTarget][3] = time.time()
             api.clearDelayQuery()
             ## Garbage Collection
-            gcDelay = 300.0
+            gcDelay = 300.0 if not notProcessed else 15.0
             gc = []
             for item in botGroup:
                 if item != 'default':
