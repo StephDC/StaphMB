@@ -176,7 +176,7 @@ def main(args):
                     parse["param"] = []
                 result = db[parse["target"]].data.execute(parse["query"],parse["param"]).fetchall()
             elif parse["action"] == "commit":
-                db[parse["target"]].commit()
+                db[parse["target"]].updateDB()
                 result = None
             elif parse["action"] == "builtin.getitem":
                 result = db[parse["target"]][parse["query"]]
@@ -187,6 +187,7 @@ def main(args):
             result = {"ok": False, "type": type(e).__module__+"."+type(e).__name__, "info": str(e)}
         try:
             sock.sendto(len(json.dumps(result)).to_bytes(8,"big"),addr)
+            print(len(json.dumps(result)))
             sock.sendto(json.dumps(result).encode("UTF-8"),addr)
         except KeyboardInterrupt:
             break

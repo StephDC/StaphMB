@@ -313,6 +313,7 @@ def checkAdmin(api,uid,origMsg,groupID,afDelay=0.5):
         except APIError:
             pass
         else:
+            print(tmp)
             if tmp['status'] in ('administrator','creator'):
                 result += groupID[item]
         time.sleep(afDelay)
@@ -703,8 +704,10 @@ def processItem(message,db,api):
                     tafData = 'Usage: <pre>/airportname &lt;ICAO code&gt;|&lt;IATA code&gt;</pre>'
                 api.sendMessage(message['message']['chat']['id'],tafData,{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/metarquiz':
+                metarQuery = message['message']['text'].split(' ', 1)
+                metarQuery = '?airport='+metarQuery[1] if len(metarQuery) == 2 and len(metarQuery[1]) == 4 else ''
                 try:
-                    quiz = ur.urlopen('http://localhost/cgi-bin/qa.cgi').read().decode('UTF-8').strip()
+                    quiz = ur.urlopen('http://localhost/cgi-bin/qa.cgi'+metarQuery).read().decode('UTF-8').strip()
                 except ue.HTTPError:
                     api.sendMessage(message['message']['chat']['id'],'抱歉，問題生成失敗了。',{'reply_to_message_id':message['message']['message_id']})
                 else:
@@ -1062,7 +1065,7 @@ def processItem(message,db,api):
                         api.sendMessage(message['message']['chat']['id'],'抱歉，僅有濫權管理員方可使用 #delmsg 刪除其他用戶的消息。',{'reply_to_message_id':message['message']['message_id']})
                     elif 'reply_to_message' not in message['message']:
                         api.sendMessage(message['message']['chat']['id'],'用法錯誤：請回覆需要被處理的訊息。',{'reply_to_message_id':message['message']['message_id']})
-                    elif api.getUserInfo(message['message']['reply_to_message'])['status'] in ('creator','administrator') or str(message['message']['reply_to_message']['from']['id']) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|'):
+                    elif not api.getUserInfo(message['message']['reply_to_message'])["user"]["is_bot"] and (api.getUserInfo(message['message']['reply_to_message'])['status'] in ('creator','administrator') or str(message['message']['reply_to_message']['from']['id']) in db[1].getItem(str(message['message']['chat']['id']),'moderator').split('|')):
                         api.sendMessage(message['message']['chat']['id'],'竟敢試圖刪管理員的消息，你的請求被濫權掉了。',{'reply_to_message_id':message['message']['message_id']})
                     elif not canPunish(api,message['message']['chat']['id']):
                         api.sendMessage(message['message']['chat']['id'],'雖然很想處理掉這條消息，然而本機器人流下了沒有權利的淚水。',{'reply_to_message_id':message['message']['message_id']})
@@ -1195,7 +1198,7 @@ def processItem(message,db,api):
             api.query('deleteMessage',{'chat_id':message['message']['chat']['id'],'message_id':message['message']['message_id']},retry=0)
         except APIError:
             pass
-    db[0].addItem(['lasttime',message['message']['date']])
+    db[0].addItem(['lasttime',message['message']['date']]) if (os.urandom(1)[0] | 127) == 0 else None
 
 def updateWorker(dbn,outdev,api,stdin,happyEnd):
     db = initiateDB(dbn,outdev)
@@ -1224,7 +1227,8 @@ def run(db,api,outdev):
             break
     for item in data:
         msgQueue.put(item)
-        db[0].addItem(['lastid',item['update_id']])
+        resPos = item["update_id"]
+    db[0].addItem(['lastid',resPos])
     api.logOut.writeln('All pending messages processed.')
     ## Start default thread for non-messages
     notProcessed = []
@@ -1232,11 +1236,13 @@ def run(db,api,outdev):
     while True:
         try:
             time.sleep(2) #Max frequency 30 messages/group
-            data = notProcessed + api.query('getUpdates',{'offset':int(db[0].getItem('lastid','value'))+1,'timeout':20})
+            data = notProcessed + api.query('getUpdates',{'offset':resPos+1,'timeout':20})
+            print("Current position:",resPos)
             notProcessed = []
             for item in data:
                 tooBusy = False
-                db[0].addItem(['lastid',item['update_id']])
+                resPos = item["update_id"] if resPos < item["update_id"] else resPos
+#                db[0].addItem(['lastid',item['update_id']]) if (os.urandom(1)[0] | 127) == 0 else None
                 queueTarget = 'default' if 'message' not in item else item['message']['chat']['id']
                 if queueTarget not in botGroup:
                     if len(botGroup) < maxConcurrentGroup:
@@ -1246,7 +1252,7 @@ def run(db,api,outdev):
                         msgThr.start()
                         botGroup[queueTarget] = [msgQueue,killSig,msgThr,time.time()]
                     else:
-                        notProcessed.append(data)
+                        notProcessed.append(item)
                         tooBusy = True
             ## Global commands
                 gcList = ("/groupthread","/setlog","/sqlite3")
@@ -1279,6 +1285,8 @@ def run(db,api,outdev):
                     botGroup[queueTarget][0].put(item)
                     botGroup[queueTarget][3] = time.time()
             api.clearDelayQuery()
+            print("Writing last position",resPos)
+            db[0].addItem(['lastid',resPos])
             ## Garbage Collection
             gcDelay = 300.0 if not notProcessed else 15.0
             gc = []
@@ -1294,8 +1302,12 @@ def run(db,api,outdev):
             print('Gracefully processing all remaining messages...')
             for item in botGroup:
                 botGroup[item][1].put(True)
+                print(botGroup[item][1].qsize())
+                print("NotProcessed",len(notProcessed))
+            for item in botGroup:
                 botGroup[item][2].join()
                 print('Group '+str(item)+' completed.')
+            db[0].addItem(['lastid',resPos])
             print('Bye!')
             return
 

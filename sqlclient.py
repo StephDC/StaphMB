@@ -28,6 +28,10 @@ class socketInteraction():
     def execute(self,query,param=[]):
         return sqlResponse(self.query(json.dumps({"action": "execute", "query": query, "param": param, "target": self.table}).encode("UTF-8")))
 
+    commit = lambda self: self.query(json.dumps({"action": "commit", "target": self.table}).encode("UTF-8"))
+    close = lambda x: None
+    cursor = lambda x: x
+
 class sqlResponse(list):
     def fetchone(self):
         if len(self) == 0:
@@ -61,7 +65,7 @@ class sqliteDB():
             self.filename = "Unknown"
         self.table = dbTable
         self.data = self.db
-        resp = self.db.query(json.dumps({"target":dbTable, "action": "execute", "query":"select * from '"+dbTable+'\' where header = "header"',"param":[]}).encode("UTF-8"))
+        resp = self.db.query(json.dumps({"target":dbTable, "action": "execute", "query":"select * from '"+dbTable+"' where header = 'header'","param":[]}).encode("UTF-8"))
         self.header = resp[0]
 
     def keys(self):
@@ -112,9 +116,7 @@ class sqliteDB():
         tmp = item[1:]
         for key in range(len(tmp)):
             self.data.execute('update "'+self.table+'" set "'+self.header[key+1]+'" = "'+str(tmp[key])+'" where header = "'+item[0]+'"')
-        self.data.close()
-        self.db.commit()
-        self.data = self.db.cursor()
+        self.updateDB()
 
     def remItem(self,item):
         if not self.hasItem(item):
@@ -123,9 +125,7 @@ class sqliteDB():
         for key in self.header[1:]:
             result.append(self.getItem(item,key))
         self.data.execute('delete from "'+self.table+'" where header = ?',(item,))
-        self.data.close()
-        self.db.commit()
-        self.data = self.db.cursor()
+        self.updateDB()
         return result
     ################ END OF TODO ####################
 
