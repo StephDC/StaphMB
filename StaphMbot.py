@@ -433,7 +433,7 @@ def processItem(message,db,api):
                 api.sendMessage(message['message']['chat']['id'],'藍桌，真的是笨桌！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/wpwpw':
                 api.sendMessage(message['message']['chat']['id'],'白磷白磷白',{'reply_to_message_id':message['message']['message_id']})
-            elif stripText == '/eric':
+            elif stripText == '/ericliu':
                 api.sendMessage(message['message']['chat']['id'],'劉醬快女裝！',{'reply_to_message_id':message['message']['message_id']})
             elif stripText == '/gay':
                 gay = 0
